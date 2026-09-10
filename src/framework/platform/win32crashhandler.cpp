@@ -238,4 +238,156 @@ void installCrashHandler()
     AddVectoredExceptionHandler(1, VigilanteDeExcepciones);
 }
 
+
+// ===================== GUARDAS_MEMORIA [DIAGNOSTICO] =====================
+// El verificador de Windows detecta la corrupcion pero mata el proceso sin
+// dejarnos escribir nada. Aqui envolvemos cada reserva de C++ con una cabecera
+// y dos franjas centinela: al liberar se comprueba todo y, si algo esta roto,
+// escribimos en el acto la pila de DONDE SE RESERVO el bloque (que es lo que
+// identifica al culpable) y la de donde se estaba liberando.
+#include <atomic>
+#include <cstdlib>
+#include <cstring>
+#include <new>
+
+namespace {
+
+    constexpr unsigned int MAGIA_VIVA = 0xC0FFEE01u;
+    constexpr unsigned int MAGIA_MUERTA = 0xDEADBEEFu;
+    constexpr size_t DESPLAZAMIENTO = 128;   // cabecera + franja delantera
+    constexpr size_t FRANJA = 32;            // franja trasera
+    constexpr unsigned char PATRON = 0xAB;
+    constexpr int FRAMES = 8;
+
+    struct Cabecera
+    {
+        unsigned int magia;
+        unsigned int estado;      // 1 vivo, 0 liberado -> pilla la doble liberacion
+        size_t tam;
+        unsigned short nPila;
+        void* pila[FRAMES];
+    };
+
+    std::atomic_bool s_yaVolcado{ false };
+    std::atomic_bool s_simbolosListos{ false };
+
+    void simbolizar(std::stringstream& ss, void* const* pila, int n)
+    {
+        const HANDLE proceso = GetCurrentProcess();
+        if (!s_simbolosListos.exchange(true)) {
+            SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+            SymInitialize(proceso, nullptr, TRUE);
+        }
+
+        char bufer[sizeof(SYMBOL_INFO) + 512];
+        auto* simbolo = reinterpret_cast<SYMBOL_INFO*>(bufer);
+        simbolo->SizeOfStruct = sizeof(SYMBOL_INFO);
+        simbolo->MaxNameLen = 500;
+
+        for (int i = 0; i < n; ++i) {
+            const auto direccion = reinterpret_cast<DWORD64>(pila[i]);
+            if (!direccion) continue;
+            DWORD64 desplaza = 0;
+            ss << "    ";
+            if (SymFromAddr(proceso, direccion, &desplaza, simbolo))
+                ss << simbolo->Name;
+            else
+                ss << "0x" << std::hex << direccion << std::dec;
+            IMAGEHLP_LINE64 linea;
+            ZeroMemory(&linea, sizeof(linea));
+            linea.SizeOfStruct = sizeof(linea);
+            DWORD despLinea = 0;
+            if (SymGetLineFromAddr64(proceso, direccion, &despLinea, &linea))
+                ss << "  (" << linea.FileName << ":" << linea.LineNumber << ")";
+            ss << std::endl;
+        }
+    }
+
+    void volcarFallo(const char* motivo, const Cabecera* cab)
+    {
+        if (s_yaVolcado.exchange(true))
+            return;
+
+        std::stringstream ss;
+        ss << "=== MEMORIA PISADA: " << motivo << " ===" << std::endl;
+        if (cab) {
+            ss << "  tamano del bloque: " << cab->tam << " bytes" << std::endl;
+            ss << "  estado: " << (cab->estado == 1 ? "vivo" : "ya liberado") << std::endl;
+            ss << "  RESERVADO EN:" << std::endl;
+            simbolizar(ss, cab->pila, cab->nPila);
+        }
+
+        void* aqui[24];
+        const unsigned short n = RtlCaptureStackBackTrace(1, 24, aqui, nullptr);
+        ss << "  DETECTADO AL LIBERAR EN:" << std::endl;
+        simbolizar(ss, aqui, n);
+        ss << std::endl;
+
+        if (std::ofstream fout("crash_guardas.log", std::ios::out | std::ios::app); fout.is_open()) {
+            fout << ss.str();
+            fout.flush();
+            fout.close();
+        }
+    }
+
+    void* reservar(size_t tam)
+    {
+        if (tam == 0) tam = 1;
+        auto* base = static_cast<unsigned char*>(std::malloc(DESPLAZAMIENTO + tam + FRANJA));
+        if (!base) return nullptr;
+
+        auto* cab = reinterpret_cast<Cabecera*>(base);
+        cab->magia = MAGIA_VIVA;
+        cab->estado = 1;
+        cab->tam = tam;
+        cab->nPila = RtlCaptureStackBackTrace(2, FRAMES, cab->pila, nullptr);
+
+        std::memset(base + sizeof(Cabecera), PATRON, DESPLAZAMIENTO - sizeof(Cabecera));
+        std::memset(base + DESPLAZAMIENTO + tam, PATRON, FRANJA);
+        return base + DESPLAZAMIENTO;
+    }
+
+    void soltar(void* p)
+    {
+        if (!p) return;
+        auto* base = static_cast<unsigned char*>(p) - DESPLAZAMIENTO;
+        auto* cab = reinterpret_cast<Cabecera*>(base);
+
+        if (cab->magia == MAGIA_MUERTA) {
+            volcarFallo("liberacion DOBLE del mismo bloque", cab);
+            return;
+        }
+        if (cab->magia != MAGIA_VIVA) {
+            volcarFallo("cabecera destruida o puntero que no salio de operator new", nullptr);
+            return;
+        }
+
+        const auto* delante = base + sizeof(Cabecera);
+        for (size_t i = 0; i < DESPLAZAMIENTO - sizeof(Cabecera); ++i) {
+            if (delante[i] != PATRON) { volcarFallo("escritura ANTES del bloque", cab); break; }
+        }
+        const auto* detras = base + DESPLAZAMIENTO + cab->tam;
+        for (size_t i = 0; i < FRANJA; ++i) {
+            if (detras[i] != PATRON) { volcarFallo("escritura DESPUES del bloque", cab); break; }
+        }
+
+        cab->magia = MAGIA_MUERTA;
+        cab->estado = 0;
+        std::free(base);
+    }
+
+}  // namespace
+
+void* operator new(size_t tam) { void* p = reservar(tam); if (!p) throw std::bad_alloc(); return p; }
+void* operator new[](size_t tam) { void* p = reservar(tam); if (!p) throw std::bad_alloc(); return p; }
+void* operator new(size_t tam, const std::nothrow_t&) noexcept { return reservar(tam); }
+void* operator new[](size_t tam, const std::nothrow_t&) noexcept { return reservar(tam); }
+void operator delete(void* p) noexcept { soltar(p); }
+void operator delete[](void* p) noexcept { soltar(p); }
+void operator delete(void* p, size_t) noexcept { soltar(p); }
+void operator delete[](void* p, size_t) noexcept { soltar(p); }
+void operator delete(void* p, const std::nothrow_t&) noexcept { soltar(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { soltar(p); }
+// =================== fin GUARDAS_MEMORIA ===================
+
 #endif
