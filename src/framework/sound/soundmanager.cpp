@@ -21,6 +21,8 @@
  */
 
 #include "soundmanager.h"
+
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #ifdef FRAMEWORK_PROTOBUF
 #include <sounds.pb.h>
@@ -33,6 +35,7 @@
 #include "soundsource.h"
 #include "streamsoundsource.h"
 #include "combinedsoundsource.h"
+#include <framework/stdext/math.h>
 #include "client/game.h"
 #include "framework/core/asyncdispatcher.h"
 #include "framework/core/clock.h"
@@ -50,6 +53,8 @@ SoundManager g_sounds;
 
 void SoundManager::init()
 {
+    m_soundTypeEnabled.fill(true);
+
 #ifdef ANDROID
     // The alcOpenDevice call needs to be executed on Android main thread
     g_androidManager.attachToAppMainThread();
@@ -452,7 +457,7 @@ bool SoundManager::loadFromProtobuf(const std::string& directory, const std::str
                 static_cast<ClientSoundType>(protobufSoundEffect.numeric_sound_type()),
                 pitch.min_value(),
                 pitch.max_value(),
-                volume.max_value(),
+                volume.min_value(),
                 volume.max_value(),
                 protobufSoundEffect.has_simple_sound_effect() ? protobufSoundEffect.simple_sound_effect().sound_id() : 0,
                 std::move(randomSounds)
@@ -517,6 +522,8 @@ bool SoundManager::loadFromProtobuf(const std::string& directory, const std::str
 
 bool SoundManager::loadClientFiles(const std::string& directory)
 {
+    m_clientSoundsDir = directory;
+
     // find catalog from json file
     try {
         json document = json::parse(g_resources.readFileContents(g_resources.resolvePath(g_resources.guessFilePath(directory + "catalog-sound", "json"))));
@@ -536,6 +543,94 @@ bool SoundManager::loadClientFiles(const std::string& directory)
 
         return false;
     }
+}
+
+// Reparto de los 19 tipos del soundbank en los canales que ve el usuario
+// en las opciones. Debe cuadrar con SoundChannels de modules/corelib/const.lua
+int SoundManager::getChannelForSoundType(const uint32_t type)
+{
+    switch (type) {
+        case 1: case 2: case 3: case 4:
+        case 5: case 6: case 7: case 19:
+            return 4;   // Battle
+        case 8:
+            return 2;   // Ambient
+        case 9: case 10:
+            return 6;   // Item
+        case 11:
+            return 7;   // Event
+        case 12:
+            return 5;   // UI
+        case 13: case 14: case 15:
+        case 16: case 17: case 18:
+            return 8;   // Chat
+        default:
+            return 3;   // Effect
+    }
+}
+
+void SoundManager::setMasterGain(const float gain)
+{
+    m_masterGain = std::clamp(gain, 0.0f, 1.0f);
+    if (m_context) {
+        ensureContext();
+        alListenerf(AL_GAIN, m_masterGain);
+    }
+}
+
+void SoundManager::setSoundTypeEnabled(const uint32_t type, const bool enabled)
+{
+    if (type < m_soundTypeEnabled.size()) {
+        m_soundTypeEnabled[type] = enabled;
+    }
+}
+
+bool SoundManager::isSoundTypeEnabled(const uint32_t type) const
+{
+    return type >= m_soundTypeEnabled.size() || m_soundTypeEnabled[type];
+}
+
+SoundSourcePtr SoundManager::playSoundEffect(const uint32_t effectId, const float fadetime)
+{
+    const auto it = m_clientSoundEffects.find(effectId);
+    if (it == m_clientSoundEffects.end()) {
+        g_logger.traceError("unknown client sound effect id {}", effectId);
+        return nullptr;
+    }
+
+    const ClientSoundEffect& effect = it->second;
+
+    uint32_t audioFileId = effect.soundId;
+    if (audioFileId == 0 && !effect.randomSoundId.empty()) {
+        audioFileId = effect.randomSoundId[stdext::random_range(0, static_cast<int>(effect.randomSoundId.size()) - 1)];
+    }
+
+    if (audioFileId == 0) {
+        return nullptr;
+    }
+
+    const std::string& fileName = getAudioFileNameById(audioFileId);
+    if (fileName.empty()) {
+        g_logger.traceError("no audio file for sound effect id {}", effectId);
+        return nullptr;
+    }
+
+    if (!isSoundTypeEnabled(effect.type)) {
+        return nullptr;
+    }
+
+    const float gain = effect.volumeMax > 0 ? stdext::random_range(effect.volumeMin, effect.volumeMax) : 1.0f;
+    const float pitch = effect.pitchMax > 0 ? stdext::random_range(effect.pitchMin, effect.pitchMax) : 1.0f;
+
+    // Cada categoria va por su canal, para que los volumenes de las opciones
+    // (Battle, UI, Item, Event, Ambience...) se apliquen por separado.
+    const int channelId = getChannelForSoundType(effect.type);
+    const auto& channel = getChannel(channelId);
+    if (channel) {
+        return channel->play(m_clientSoundsDir + fileName, fadetime, gain, pitch);
+    }
+
+    return play(m_clientSoundsDir + fileName, fadetime, gain, pitch);
 }
 
 std::string SoundManager::getAudioFileNameById(int32_t audioFileId)

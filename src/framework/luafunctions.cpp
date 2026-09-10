@@ -498,6 +498,10 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_fonts", "clearFonts", &FontManager::clearFonts, &g_fonts);
     g_lua.bindSingletonFunction("g_fonts", "importFont",
         static_cast<bool (FontManager::*)(const std::string&)>(&FontManager::importFont), &g_fonts);
+    // Permite pedir el contorno desde Lua: la fuente de Tibia es Verdana negrita
+    // CON borde oscuro (su propio Verdana10px.fnt declara bold=1 y outline=1).
+    g_lua.bindSingletonFunction("g_fonts", "importFontStroked",
+        static_cast<std::string (FontManager::*)(const std::string&, int, int, const Color&)>(&FontManager::importTTF), &g_fonts);
     g_lua.bindSingletonFunction("g_fonts", "importFontWithSize",
         static_cast<bool (FontManager::*)(const std::string&, int)>(&FontManager::importFont), &g_fonts);
     g_lua.bindSingletonFunction("g_fonts", "fontExists", &FontManager::fontExists, &g_fonts);
@@ -1104,6 +1108,11 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_sounds", "setPosition", &SoundManager::setPosition, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "createSoundEffect", &SoundManager::createSoundEffect, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "isEaxEnabled", &SoundManager::isEaxEnabled, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "playSoundEffect", &SoundManager::playSoundEffect, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "setMasterGain", &SoundManager::setMasterGain, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "getMasterGain", &SoundManager::getMasterGain, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "setSoundTypeEnabled", &SoundManager::setSoundTypeEnabled, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "isSoundTypeEnabled", &SoundManager::isSoundTypeEnabled, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "loadClientFiles", &SoundManager::loadClientFiles, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "getAudioFileNameById", &SoundManager::getAudioFileNameById, &g_sounds);
 

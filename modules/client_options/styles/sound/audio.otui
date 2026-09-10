@@ -11,13 +11,34 @@ UIWidget
       id: enableAudio
       !text: tr('Enable audio')
 
+  // ---------------- Master ----------------
   SmallReversedQtPanel
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.top: prev.bottom
     margin-top: 7
-    height: 44
-  
+    height: 28
+
+    OptionScaleScroll
+      id: masterVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('masterVolume')
+        self:setText(tr('Master Volume: %d %%', value))
+
+  // ---------------- Musica ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 70
+
     OptionCheckBox
       id: enableMusicSound
       !text: tr('Enable music sound')
@@ -28,9 +49,127 @@ UIWidget
       anchors.top: prev.bottom
       anchors.left: parent.left
       anchors.right: parent.right
-      &minimumScrollValue: 1
+      &minimumScrollValue: 0
       &maximumScrollValue: 100
       &scrollSize: 21
       @onSetup: |
         local value = modules.client_options.getOption('musicSoundVolume')
-        self:setText(tr('Music volume: %d', value))
+        self:setText(tr('Music Volume: %d %%', value))
+
+    OptionCheckBox
+      id: enableAnthem
+      margin-top: 5
+      anchors.top: prev.bottom
+      !text: tr('Anthem')
+
+  // ---------------- Ambiente ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 28
+
+    OptionScaleScroll
+      id: ambienceVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('ambienceVolume')
+        self:setText(tr('Ambience Volume: %d %%', value))
+
+  // ---------------- Objetos ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 70
+
+    OptionScaleScroll
+      id: itemVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('itemVolume')
+        self:setText(tr('Item Volume: %d %%', value))
+
+    OptionCheckBox
+      id: enableFoodAndBeverages
+      margin-top: 5
+      anchors.top: prev.bottom
+      !text: tr('Food and Beverages')
+
+    OptionCheckBox
+      id: enableMoveItem
+      margin-top: 3
+      anchors.top: prev.bottom
+      !text: tr('Move Item')
+
+  // ---------------- Eventos ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 28
+
+    OptionScaleScroll
+      id: eventVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('eventVolume')
+        self:setText(tr('Event Volume: %d %%', value))
+
+  // ---------------- Combate ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 28
+
+    OptionScaleScroll
+      id: battleVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('battleVolume')
+        self:setText(tr('Battle Sounds: %d %%', value))
+
+  // ---------------- Interfaz ----------------
+  SmallReversedQtPanel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 7
+    height: 28
+
+    OptionScaleScroll
+      id: uiVolume
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      &minimumScrollValue: 0
+      &maximumScrollValue: 100
+      &scrollSize: 21
+      @onSetup: |
+        local value = modules.client_options.getOption('uiVolume')
+        self:setText(tr('UI Sounds: %d %%', value))

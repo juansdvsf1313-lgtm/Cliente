@@ -219,13 +219,98 @@ return {
             end
         end
     },
-    musicSoundVolume                  = {
+    masterVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.setMasterGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('masterVolume')
+            if w then w:setText(tr('Master Volume: %d %%', value)) end
+        end
+    },
+    musicSoundVolume = {
         value = 100,
         action = function(value, options, controller, panels, extraWidgets)
             if g_sounds then
                 g_sounds.getChannel(SoundChannels.Music):setGain(value / 100)
             end
-            panels.soundPanel:recursiveGetChildById('musicSoundVolume'):setText(tr('Music volume: %d', value))
+            local w = panels.soundPanel:recursiveGetChildById('musicSoundVolume')
+            if w then w:setText(tr('Music Volume: %d %%', value)) end
+        end
+    },
+    enableAnthem = {
+        value = true,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds and not value then
+                g_sounds.getChannel(SoundChannels.Music):stop()
+            end
+        end
+    },
+    ambienceVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.getChannel(SoundChannels.Ambient):setGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('ambienceVolume')
+            if w then w:setText(tr('Ambience Volume: %d %%', value)) end
+        end
+    },
+    itemVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.getChannel(SoundChannels.Item):setGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('itemVolume')
+            if w then w:setText(tr('Item Volume: %d %%', value)) end
+        end
+    },
+    enableFoodAndBeverages = {
+        value = true,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.setSoundTypeEnabled(ClientSoundTypes.FoodAndDrink, value)
+            end
+        end
+    },
+    enableMoveItem = {
+        value = true,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.setSoundTypeEnabled(ClientSoundTypes.ItemMovement, value)
+            end
+        end
+    },
+    eventVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.getChannel(SoundChannels.Event):setGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('eventVolume')
+            if w then w:setText(tr('Event Volume: %d %%', value)) end
+        end
+    },
+    battleVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.getChannel(SoundChannels.Battle):setGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('battleVolume')
+            if w then w:setText(tr('Battle Sounds: %d %%', value)) end
+        end
+    },
+    uiVolume = {
+        value = 100,
+        action = function(value, options, controller, panels, extraWidgets)
+            if g_sounds then
+                g_sounds.getChannel(SoundChannels.UI):setGain(value / 100)
+            end
+            local w = panels.soundPanel:recursiveGetChildById('uiVolume')
+            if w then w:setText(tr('UI Sounds: %d %%', value)) end
         end
     },
     enableLights                      = {
@@ -395,6 +480,15 @@ return {
     },
     showDragIcon        = {
         value = true,
+    },
+    hdMode                            = {
+        value = false,
+        action = function(value, options, controller, panels, extraWidgets)
+            local combo = panels.graphicsPanel:recursiveGetChildById('hdMode')
+            if combo then
+                combo:setCurrentOptionByData(value and 1 or 0, true)
+            end
+        end
     },
     antialiasingMode                  = {
         value = 1,

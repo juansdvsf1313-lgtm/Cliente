@@ -332,8 +332,22 @@ NetworkMessageTypes          = {
 
 SoundChannels                = {
     Music = 1,
-    Ambient = 2,
-    Effect = 3
+    Ambient = 2,   -- ambience stream (tipo 8 del soundbank)
+    Effect = 3,    -- generico
+    Battle = 4,    -- spells, armas y criaturas (tipos 1-7 y 19)
+    UI = 5,        -- interfaz (tipo 12)
+    Item = 6,      -- comida/bebida y mover objetos (tipos 9 y 10)
+    Event = 7,     -- eventos (tipo 11)
+    Chat = 8       -- chat, party, VIP, raids (tipos 13-18)
+}
+
+-- tipos del soundbank, para poder silenciarlos por separado
+ClientSoundTypes             = {
+    SpellAttack = 1, SpellHealing = 2, SpellSupport = 3, WeaponAttack = 4,
+    CreatureNoise = 5, CreatureDeath = 6, CreatureAttack = 7, Ambience = 8,
+    FoodAndDrink = 9, ItemMovement = 10, Event = 11, UI = 12,
+    Whisper = 13, ChatMessage = 14, Party = 15, VipList = 16,
+    RaidAnnouncement = 17, ServerMessage = 18, SpellGeneric = 19
 }
 
 DisplayNone                  = 0

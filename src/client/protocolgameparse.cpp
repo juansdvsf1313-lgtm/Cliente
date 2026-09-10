@@ -25,6 +25,7 @@
 #include "attachedeffectmanager.h"
 #include "effect.h"
 #include "game.h"
+#include <framework/sound/soundmanager.h>
 #include "gameconfig.h"
 #include "item.h"
 #include "localplayer.h"
@@ -1960,14 +1961,16 @@ void ProtocolGame::parseMagicEffect(const InputMessagePtr& msg)
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_MAIN_EFFECT: {
                     msg->getU8(); // Source
-                    msg->getU16(); // Sound ID
+                    const uint16_t soundId = msg->getU16();
+                    g_sounds.playSoundEffect(soundId);
                     break;
                 }
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_SECONDARY_EFFECT: {
                     msg->getU8(); // ENUM
                     msg->getU8(); // Source
-                    msg->getU16(); // Sound ID
+                    const uint16_t soundId = msg->getU16();
+                    g_sounds.playSoundEffect(soundId);
                     break;
                 }
                 default:

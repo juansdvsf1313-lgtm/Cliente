@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "declarations.h"
 
 using DelayedSoundEffect = std::pair<uint32_t, uint32_t>;
@@ -136,6 +138,16 @@ public:
     bool isEaxEnabled();
     bool loadClientFiles(const std::string& directory);
     std::string getAudioFileNameById(int32_t audioFileId);
+    // reproduce un efecto del soundbank de protocolo 13+ por su id
+    SoundSourcePtr playSoundEffect(uint32_t effectId, float fadetime = 0);
+
+    // volumen maestro (ganancia del listener de OpenAL), 0.0 - 1.0
+    void setMasterGain(float gain);
+    float getMasterGain() const { return m_masterGain; }
+
+    // permite silenciar tipos concretos del soundbank (ej. "Move Item")
+    void setSoundTypeEnabled(uint32_t type, bool enabled);
+    bool isSoundTypeEnabled(uint32_t type) const;
 
     void preload(std::string filename);
     SoundSourcePtr play(const std::string& filename, float fadetime = 0, float gain = 0, float pitch = 0);
@@ -146,6 +158,7 @@ public:
     void ensureContext() const;
 
 private:
+    static int getChannelForSoundType(uint32_t type);
     SoundSourcePtr createSoundSource(const std::string& name);
     bool loadFromProtobuf(const std::string& directory, const std::string& fileName);
 
@@ -160,6 +173,9 @@ private:
     std::unordered_map<std::string, SoundEffectPtr> m_effects;
 
     // soundbanks for protocol 13 and newer
+    float m_masterGain{ 1.0f };
+    std::array<bool, 20> m_soundTypeEnabled{};   // indexado por ClientSoundType
+    std::string m_clientSoundsDir;
     std::map<uint32_t, std::string> m_clientSoundFiles;
     std::map<uint32_t, ClientSoundEffect> m_clientSoundEffects;
     std::map<uint32_t, ClientLocationAmbient> m_clientAmbientEffects;
