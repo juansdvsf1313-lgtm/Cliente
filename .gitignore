@@ -334,3 +334,16 @@ android/build/
 luajit-src/
 CMakeUserPresets.json
 **/.canary-shared-cache/
+
+# copias de seguridad y trazas que dejan los scripts de mantenimiento
+*.bak_*
+*.bak
+*.obsoleto
+*.instrumentado
+*.original_*
+*.con_*
+_copia_fuentes_antes/
+*_original_backup/
+otclient.log*
+traza_*.txt
+_build*.log
