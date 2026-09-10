@@ -664,11 +664,12 @@ if(MSVC)
   target_compile_options(otclient_core PUBLIC /MP /FS /Zf /EHsc /bigobj)
 
   # MSVC 19.44 ICEs in stdext::safe_cast instantiations with release optimization.
+  # Con MSVC 19.51 (VS2026) ya no ocurre, asi que estos dos ficheros se compilan
+  # optimizados como el resto. Si vuelve el ICE, devolver "/Od;/Ob0".
   set_source_files_properties(
           framework/luaengine/luavaluecasts.cpp
           framework/luafunctions.cpp
           PROPERTIES
-            COMPILE_OPTIONS "/Od;/Ob0"
             SKIP_PRECOMPILE_HEADERS ON
   )
 
