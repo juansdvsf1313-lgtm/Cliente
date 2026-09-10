@@ -75,7 +75,7 @@ ColorBox < UICheckBox
     image-clip: 0 0 13 13
 
 ButtonBox < UICheckBox
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   color: white
   size: 106 23
   text-offset: 0 0

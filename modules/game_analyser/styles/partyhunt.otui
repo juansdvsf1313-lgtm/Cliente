@@ -15,7 +15,7 @@ LeaderInfo < UIWidget
     anchors.left: prev.right
     text-auto-resize: true
     color: #ffda34
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     margin-left: 3
     margin-top: -3
   UIWidget
@@ -66,7 +66,7 @@ LeaderInfo < UIWidget
     margin-right: 4
     text-auto-resize: true
     color: #44ad25
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     tooltip-font: Verdana Bold-11px-wheel
     tooltip-delayed: true
   Label
@@ -78,7 +78,7 @@ LeaderInfo < UIWidget
     margin-right: 2
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
   Label
     id: healing
     !text: tr('0')
@@ -88,7 +88,7 @@ LeaderInfo < UIWidget
     margin-right: 2
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 Info < UIWidget
   size: 151 63
@@ -100,7 +100,7 @@ Info < UIWidget
     anchors.left: parent.left
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
   UIWidget
     id: balanceIcon
     size: 11 11
@@ -149,7 +149,7 @@ Info < UIWidget
     margin-right: 4
     text-auto-resize: true
     color: #44ad25
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     tooltip-font: Verdana Bold-11px-wheel
     tooltip-delayed: true
   Label
@@ -161,7 +161,7 @@ Info < UIWidget
     margin-right: 2
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
   Label
     id: healing
     !text: tr('0')
@@ -171,7 +171,7 @@ Info < UIWidget
     margin-right: 2
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MiniWindow
   id: phAnalyserMiniWindow
@@ -218,7 +218,7 @@ MiniWindow
       anchors.left: parent.left
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: session
@@ -227,7 +227,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: lootTypeLabel
@@ -237,7 +237,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: true
 
     Label
@@ -248,7 +248,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: true
 
     Label
@@ -259,7 +259,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -278,7 +278,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: suppliesLabel
@@ -288,7 +288,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -307,7 +307,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: balanceLabel
@@ -317,7 +317,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -336,7 +336,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #44ad25
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     HorizontalSeparator
       id: separator

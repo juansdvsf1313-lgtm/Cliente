@@ -48,7 +48,7 @@ GemDetailPanel < UIWidget
     size: 192 30
     !text: tr('+3%% Fire Resistence')
     text-auto-resize: false
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #707070
     anchors.top: prev.bottom
     anchors.left: parent.left
@@ -104,7 +104,7 @@ GemDetailPanel < UIWidget
     id: modLabel1
     size: 192 30
     !text: tr('+3%% Fire Resistence')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #707070
     anchors.top: modLabel0.top
     anchors.left: modLabel0.right
@@ -161,7 +161,7 @@ GemDetailPanel < UIWidget
     id: modLabel2
     size: 192 30
     !text: tr('+3%% Fire Resistence')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #707070
     anchors.top: modLabel1.top
     anchors.left: modLabel1.right
@@ -691,7 +691,7 @@ Panel
         !text: tr('Lesser Gem (x 0)')
         text-wrap: true
         text-align: center
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
 
       UIButton
@@ -737,7 +737,7 @@ Panel
           margin-right: 2
           margin-top: 2
           text-auto-resize: true
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
 
     Panel
@@ -772,7 +772,7 @@ Panel
         !text: tr('Lesser Gem (x 0)')
         text-wrap: true
         text-align: center
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
 
       UIButton
@@ -818,7 +818,7 @@ Panel
           margin-right: 2
           margin-top: 2
           text-auto-resize: true
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
 
     Panel
@@ -853,7 +853,7 @@ Panel
         !text: tr('Lesser Gem (x 0)')
         text-wrap: true
         text-align: center
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
 
       UIButton
@@ -899,7 +899,7 @@ Panel
           margin-right: 2
           margin-top: 2
           text-auto-resize: true
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
 
   Panel
@@ -933,7 +933,7 @@ Panel
         anchors.verticalCenter: parent.verticalCenter
         !text: tr('There is no gem available.')
         text-auto-resize: true
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
 
     Panel
@@ -963,7 +963,7 @@ Panel
           margin-right: 28
           !text: tr('Lesser Guardian Gem')
           text-auto-resize: true
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
         UIWidget
           id: gemDetailItem
@@ -980,7 +980,7 @@ Panel
           size: 26 26
           !text: tr('Domain Affinity')
           text-auto-resize: true
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
           anchors.bottom: parent.bottom
           anchors.left: parent.left
@@ -1066,7 +1066,7 @@ Panel
           !text: tr('0')
           anchors.top: parent.top
           anchors.right: prev.left
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           color: #c0c0c0
           margin-right: 4
           margin-top: 2
@@ -1151,7 +1151,7 @@ Panel
       id: lockedOnly
       size: 12 12
       !text: tr('Locked only')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #c0c0c0
       anchors.left: prev.right
@@ -1195,7 +1195,7 @@ Panel
         margin-top: 2
         !text: tr('Page 0 / 0 (0 Gems)')
         text-auto-resize: true
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
       UIButton
         id: leftArrow

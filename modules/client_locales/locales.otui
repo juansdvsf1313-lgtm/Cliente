@@ -6,7 +6,7 @@ LocalesButton < UIWidget
   image-size: 96 96
   image-smooth: true
   text-offset: 0 96
-  font: verdana-11px-antialised
+  font: verdana-bold_11
 
 UIWindow
   id: localesWindow

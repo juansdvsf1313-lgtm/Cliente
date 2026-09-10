@@ -41,11 +41,76 @@ local function tryLoadDatWithFallbacks(datPath)
     return false
 end
 
+-- Modo HD: assets de doble resolucion en /data/things/<version>_hd. El tamano de
+-- sprite tiene que cambiar A LA VEZ, porque ThingType calcula cuantos tiles ocupa
+-- un objeto dividiendo los pixeles del sprite entre g_gameConfig.getSpriteSize():
+-- con sprites de 64 y tamano 32 todo saldria del doble de grande, y al reves
+-- daria 0 tiles y no se veria nada.
+local function resolveAssets(version)
+    if g_settings.getBoolean('hdMode', false) then
+        -- Ojo: resolvepath() con '/' inicial devuelve la ruta tal cual, nunca nil,
+        -- asi que comprobarla contra nil no verificaba nada. Hay que preguntarle al
+        -- gestor de recursos si la carpeta esta montada de verdad.
+        local hdPath = string.format('/data/things/%d_hd/', version)
+        if g_resources.directoryExists(hdPath) and
+           g_resources.fileExists(hdPath .. 'catalog-content.json') then
+            g_gameConfig.setSpriteSize(64)
+            g_logger.info(string.format('[things] modo HD: %s (sprite-size 64)', hdPath))
+            return hdPath
+        end
+        g_logger.error(string.format(
+            '[things] modo HD activado pero no se encuentra %s - se usan los assets normales', hdPath))
+    end
+
+    g_gameConfig.setSpriteSize(32)
+    return resolvepath(string.format('/data/things/%d/', version))
+end
+
+-- Cambio de HD/SD en caliente. Es posible porque loadAppearances() ya hace
+-- things.clear() y g_spriteAppearances.unload() por dentro: reconstruye todos los
+-- ThingType con el tamano de sprite vigente y suelta las hojas cacheadas. Lo unico
+-- que queda por nuestra cuenta es forzar el recalculo de la geometria del mapa,
+-- porque el tile cambia de tamano y setVisibleDimension ignora el mismo valor.
+function reloadThingsAssets()
+    local version = g_game.getClientVersion()
+    g_logger.info(string.format('[things] reloadThingsAssets: version=%s hdMode=%s',
+        tostring(version), tostring(g_settings.getBoolean('hdMode', false))))
+    if version == nil or version < 1281 or g_game.getFeature(GameLoadSprInsteadProtobuf) then
+        -- Todavia no hay assets cargados: bastara con que load() lea la opcion.
+        return true
+    end
+
+    local filePath = resolveAssets(version)
+    if filePath == nil then
+        g_logger.error('[things] no se encontro la carpeta de assets')
+        return false
+    end
+
+    if not g_things.loadAppearances(filePath) then
+        g_logger.error('[things] fallo al recargar appearances')
+        return false
+    end
+    if not g_things.loadStaticData(filePath) then
+        g_logger.error('[things] fallo al recargar staticdata')
+        return false
+    end
+
+    local map = modules.game_interface and modules.game_interface.getMapPanel()
+    if map then
+        map:zoomIn()
+        map:zoomOut()
+    end
+
+    g_logger.info(string.format('[things] assets recargados en caliente (sprite-size %s)',
+        tostring(g_gameConfig.getSpriteSize())))
+    return true
+end
+
 local function load(version)
     local errorList = {}
 
     if version >= 1281 and not g_game.getFeature(GameLoadSprInsteadProtobuf) then
-        local filePath = resolvepath(string.format('/data/things/%d/', version))
+        local filePath = resolveAssets(version)
         if not g_things.loadAppearances(filePath) then
             errorList[#errorList + 1] = "Couldn't load assets"
         end

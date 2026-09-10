@@ -120,7 +120,18 @@ local function showSelectionList(data, tempValue, tempField, onSelectCallback)
                 button.outfit:setMarginBottom(15)
                 button.outfit:setCenter(true)
             elseif Category == 2 then
-                button.outfit:setOutfit(previewCreature:getCreature():getOutfit())
+                -- La lista de outfits ya limpia la montura antes de previsualizar;
+                -- aqui no se hacia, asi que el sprite de la montura se dibujaba
+                -- encima y tapaba el aura que se quiere ver. Se previsualiza sobre
+                -- el personaje a pie y sin otros efectos enganchados.
+                local previa = table.copy(previewCreature:getCreature():getOutfit())
+                previa.mount = 0
+                previa.familiar = 0
+                previa.auras = 0
+                previa.wings = 0
+                previa.effects = 0
+                previa.healthBar = 0
+                button.outfit:setOutfit(previa)
                 button.outfit:getCreature():attachEffect(g_attachedEffects.getById(itemData[1]))
             elseif Category == 5 then
                 button.outfit:setImageSource(modules.game_attachedeffects.getTexture(itemData[1]))

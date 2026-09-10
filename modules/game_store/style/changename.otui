@@ -9,7 +9,7 @@ StoreWindow
     id: transferPointsLabel
     !text: tr('Enter New Character Name')
     text-align: center
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right

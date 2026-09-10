@@ -63,41 +63,26 @@ if ENABLE_SERVERS then
     --
     Servers_init = {
 
-        -- Local login server
-        ---
-        -- Configuration for local login server.
-        -- @class table
-        -- @name local_login
-        -- @field port Port used for HTTP connection
-        -- @field protocol Protocol identifier used by the application
-        -- @field httpLogin Enables HTTP-based login on the server
-        -- @field useAuthenticator Enables additional authentication layer
-        --
-        ["http://127.0.0.1/login.php"] = {
-            port = 80,
-            protocol = 1511,
+        -- Servidor unico: TheOne 15.25 (Canary local).
+        -- IMPORTANTE: la lista debe tener UNA sola entrada. entergame.lua solo
+        -- aplica setHttpLogin() cuando table.size(Servers_init) == 1; con varias
+        -- entradas la casilla de login HTTP se queda como estuviera y el cliente
+        -- intenta hablar HTTP contra el puerto de juego.
+        -- OJO: entergame.lua hace
+        --     if clientVersion >= 1281 and G.port ~= 7171 then tryHttpLogin(...)
+        -- Es decir, con protocolo 12.81 o superior el cliente SIEMPRE usa login
+        -- HTTP salvo que el puerto sea exactamente 7171. Como el nuestro es 7181,
+        -- el login directo no es una opcion: hay que ir por MyAAC.
+        ["http://127.0.0.1:8080/login.php"] = {
+            port = 8080,
+            protocol = 1525,
             httpLogin = true,
             useAuthenticator = false
-        },
-
-        -- External server
-        ---
-        -- Configuration for external server ip.net.
-        -- @class table
-        -- @name ip_net
-        -- @field port TCP port used for connection
-        -- @field protocol Protocol identifier used by the server
-        -- @field httpLogin Indicates if the server allows HTTP login
-        --
-        ["ip.net"] = {
-            port = 7171,
-            protocol = 860,
-            httpLogin = false
         }
     }
 end
 
-g_app.setName("OTClient - Redemption");
+g_app.setName("TheOne");
 g_app.setCompactName("otclient");
 g_app.setOrganizationName("otcr");
 

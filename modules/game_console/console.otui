@@ -95,7 +95,7 @@ ExcludeNameWindow < NewMainWindow
       margin-right: 10
 
 ConsoleLabel < UITextEdit
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   height: 14
   color: yellow
   margin-left: 2
@@ -111,7 +111,7 @@ ConsoleLabel < UITextEdit
   focusable: false
 
 ConsolePhantomLabel < UILabel
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   height: 14
   color: yellow
   text-wrap: true

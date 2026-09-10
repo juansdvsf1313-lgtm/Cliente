@@ -31,7 +31,7 @@ FragmentPanel < UIWidget
     margin-top: 9
     margin-right: 9
     !text: tr('x 1')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
     tooltip-delayed: true
     tooltip: This mod can be found %s time(s) on gems in your invetory.
@@ -83,7 +83,7 @@ Panel
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.verticalCenter: parent.verticalCenter
       !text: tr('There is no mod that matches your filters.')
-      font:  Verdana Bold-11px
+      font:  verdana-bold_11
       color: #c0c0c0
       margin-top: 2
   Panel
@@ -147,7 +147,7 @@ Panel
         margin-right: 2
         margin-top: 2
         text-auto-resize: true
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
         tooltip-delayed: true
         $!on:
@@ -179,7 +179,7 @@ Panel
         margin-right: 2
         margin-top: 2
         text-auto-resize: true
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
         $!on:
           color: #d33c3c
@@ -201,7 +201,7 @@ Panel
         anchors.right: parent.right
         anchors.top: parent.top
         margin-top: 4
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
         text: Dodge
         text-allign: center
@@ -425,7 +425,7 @@ Panel
         anchors.top: parent.top
         anchors.left: modBg3.right
         !text: tr('Grade IV')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         margin-left: 109
         margin-top: 45
@@ -434,7 +434,7 @@ Panel
         anchors.horizontalCenter: prev.horizontalCenter
         anchors.top: prev.bottom
         !text: tr('+x%% Some Bonus')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         text-auto-resize: true
         text-align: center
@@ -445,7 +445,7 @@ Panel
         anchors.top: grade3.bottom
         anchors.left: modBg3.right
         !text: tr('Grade III')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         margin-left: 107
         margin-top: 95
@@ -454,7 +454,7 @@ Panel
         anchors.horizontalCenter: prev.horizontalCenter
         anchors.top: prev.bottom
         !text: tr('+x%% Some Bonus')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         text-auto-resize: true
         text-align: center
@@ -465,7 +465,7 @@ Panel
         anchors.top: grade2.bottom
         anchors.left: modBg3.right
         !text: tr('Grade II')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         margin-left: 110
         margin-top: 95
@@ -474,7 +474,7 @@ Panel
         anchors.horizontalCenter: prev.horizontalCenter
         anchors.top: prev.bottom
         !text: tr('+x%% Some Bonus')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #707070
         text-auto-resize: true
         text-align: center
@@ -485,7 +485,7 @@ Panel
         anchors.top: grade1.bottom
         anchors.left: modBg3.right
         !text: tr('Grade I')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
         margin-left: 113
         margin-top: 85
@@ -494,7 +494,7 @@ Panel
         anchors.horizontalCenter: prev.horizontalCenter
         anchors.top: prev.bottom
         !text: tr('+x%% Some Bonus')
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
         //color: #707070
         text-auto-resize: true
@@ -575,7 +575,7 @@ Panel
         margin-right: 7
         !text: tr('Page 0 / 0 (0 Mods)')
         text-auto-resize: true
-        font: Verdana Bold-11px
+        font: verdana-bold_11
         color: #c0c0c0
       UIButton
         id: rightArrow

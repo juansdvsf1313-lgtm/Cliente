@@ -17,6 +17,15 @@ UIWidget
     anchors.left: prev.right
     mouse-scroll: false
 
+  QtComboBox
+    id: hdMode
+    width: 120
+    margin-left: 10
+    anchors.verticalCenter: prev.verticalCenter
+    anchors.left: prev.right
+    mouse-scroll: false
+    !tooltip: 'Graficos HD: usa los sprites de doble resolucion. Se aplica al momento.'
+
   SmallReversedQtPanel
     anchors.left: parent.left
     anchors.right: parent.right

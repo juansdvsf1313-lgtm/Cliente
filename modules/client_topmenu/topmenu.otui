@@ -77,6 +77,7 @@ TopMenuPanel
 
   UIWidget
     id: topLeftDiscord
+    visible: false
     anchors.verticalCenter: parent.verticalCenter
     anchors.left: parent.left
     margin-left: 10
@@ -107,6 +108,7 @@ TopMenuPanel
 
   UIWidget
     id: topLeftYoutube
+    visible: false
     anchors.verticalCenter: parent.verticalCenter
     anchors.left: topLeftDiscord.right
     margin-left: 10

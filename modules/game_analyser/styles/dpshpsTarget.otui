@@ -44,7 +44,7 @@ NewMainWindow
   id: dspHpsWindow
   anchors.horizontalCenter: parent.horizontalCenter
   !text: tr('Set DPS Target')
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   color: #909090
   size: 360 134
   @onEscape: self:hide()

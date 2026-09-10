@@ -125,7 +125,11 @@ end
 function collectiveReload()
   modules.game_topbar.refresh(true)
   modules.game_actionbar.refresh(true)
-  modules.game_bot.refresh()
+  -- game_bot esta desactivado (fuera de load-later en client_mods/mods.otmod).
+  -- Se comprueba antes de llamar para no romper la recarga de perfiles.
+  if modules.game_bot then
+    modules.game_bot.refresh()
+  end
 end
 
 -- json handlers

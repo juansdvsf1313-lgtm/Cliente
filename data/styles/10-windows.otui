@@ -1,5 +1,5 @@
 Window < UIWindow
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   size: 200 200
   opacity: 1
   color: #dfdfdf
@@ -42,7 +42,7 @@ UpdaterMainWindow < StaticWindow
   padding-bottom: 3
 
 NewWindow < UIWindow
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   size: 200 200
   color: #909090
   text-offset: -2 1
@@ -70,7 +70,7 @@ NewStaticMainWindow < NewStaticWindow
   anchors.centerIn: parent
 
 WindowCyclopedia < UIWindow
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   size: 200 200
   color: #909090
   text-offset: -2 1
@@ -83,7 +83,7 @@ WindowCyclopedia < UIWindow
   padding-bottom: 4
 
 WindowPodium < UIWindow
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   size: 200 200
   color: #909090
   text-offset: -2 1
@@ -94,7 +94,7 @@ WindowPodium < UIWindow
 ActionAssignWindow < MainWindow
   id: assignWindow
   size: 400 215
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   color: #909090
 
   Label
@@ -105,7 +105,7 @@ ActionAssignWindow < MainWindow
     margin-top: -7
     text-auto-resize: true
     text: Mode: "Chat On"
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
 
   FlatLabel
@@ -116,7 +116,7 @@ ActionAssignWindow < MainWindow
     height: 33
     margin-top: 10
     text-align: center
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
 
   Label
@@ -129,7 +129,7 @@ ActionAssignWindow < MainWindow
     text-auto-resize: true 
     text-wrap: true
     text: Click "Ok" to assign the hotkey. Click "Clear" to remove the hotkey from "
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
 
   Label
@@ -142,7 +142,7 @@ ActionAssignWindow < MainWindow
     text-auto-resize: true
     text: This hotkey is already in use and will be overwritten.
     color: #f75f5f
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     visible: false
 
   HorizontalSeparator
@@ -188,7 +188,7 @@ WindowPanel < Panel
   image-border-top: 17
 
 TransparentWindow < UIWindow
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   size: 200 200
   color: #8f8f8f
   text-offset: 0 2
@@ -250,6 +250,6 @@ RulesWindow < NewHeadlessWindow
       !text: tr('I agree with the Terms and Conditions.')
       !tooltip: tr('I have read and I agree to the Extended Terms and Conditions.')
       margin-bottom: 5
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #c0c0c0
       text-auto-resize: true

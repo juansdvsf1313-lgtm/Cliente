@@ -50,7 +50,7 @@ MiniWindow
       anchors.left: parent.left
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -68,7 +68,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: perHourLabel
@@ -78,7 +78,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -96,7 +96,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     HorizontalSeparator
       id: separator
@@ -132,7 +132,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       id: goldLabelIcon
@@ -151,7 +151,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       id: lootTargetBG

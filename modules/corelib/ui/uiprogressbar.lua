@@ -5,8 +5,13 @@ function UIProgressBar.create()
     local progressbar = UIProgressBar.internalCreate()
     progressbar:setFocusable(false)
     progressbar:setOn(true)
+    -- create() inicializaba 'min'/'max' pero getProgress() lee 'minimum'/'maximum'.
+    -- Al quedar nil, la comparacion nil == nil daba true y getProgress() devolvia 1,
+    -- asi que toda barra se pintaba LLENA hasta la primera llamada a setPercent.
     progressbar.min = 0
     progressbar.max = 100
+    progressbar.minimum = 0
+    progressbar.maximum = 100
     progressbar.value = 0
     progressbar.bgBorderLeft = 0
     progressbar.bgBorderRight = 0

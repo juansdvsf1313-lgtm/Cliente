@@ -112,7 +112,7 @@ NewMainWindow
       margin-right: 5
       margin-top: 3
       text-auto-resize: true
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf
 
   Panel
@@ -141,7 +141,7 @@ NewMainWindow
       margin-right: 5
       margin-top: 3
       text-auto-resize: true
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf
 
   Panel
@@ -170,7 +170,7 @@ NewMainWindow
       margin-right: 5
       margin-top: 3
       text-auto-resize: true
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf
 
   Button
@@ -196,7 +196,7 @@ NewMainWindow
     margin-left: 6
     !text: tr('Current Preset: Default-Preset')
     text-auto-resize: true
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     color: #dfdfdf
 
   Button

@@ -43,6 +43,17 @@ local buttons = { {
     }, {
         text = "Action Bars",
         open = "actionbars"
+    }, {
+        -- La ventana de idiomas de client_locales solo se abria en el primer
+        -- arranque del cliente. Se anade aqui, en la tabla estatica, para que no
+        -- dependa del orden de carga de modulos.
+        text = "Idioma / Language",
+        open = "interface",
+        callbackFunc = function()
+            if modules.client_locales and modules.client_locales.createWindow then
+                modules.client_locales.createWindow()
+            end
+        end
     } }
 }, {
     text = "Graphics",
@@ -112,6 +123,7 @@ end
 local function setupComboBox()
     local crosshairCombo = panels.interface:recursiveGetChildById('crosshair')
     local antialiasingModeCombobox = panels.graphicsPanel:recursiveGetChildById('antialiasingMode')
+    local hdModeCombobox = panels.graphicsPanel:recursiveGetChildById('hdMode')
     local floorViewModeCombobox = panels.graphicsEffectsPanel:recursiveGetChildById('floorViewMode')
     local framesRarityCombobox = panels.interface:recursiveGetChildById('frames')
     local vocationPresetsCombobox = panels.keybindsPanel:recursiveGetChildById('list')
@@ -153,6 +165,30 @@ local function setupComboBox()
 
     antialiasingModeCombobox.onOptionChange = function(comboBox, option)
         setOption('antialiasingMode', comboBox:getCurrentOption().data)
+    end
+
+    -- Graficos HD: assets de doble resolucion. El cambio se aplica en caliente.
+    for k, t in pairs({ 'SD Mode', 'HD Mode' }) do
+        hdModeCombobox:addOption(t, k - 1)
+    end
+
+    hdModeCombobox.onOptionChange = function(comboBox, option)
+        local enabled = comboBox:getCurrentOption().data == 1
+        setOption('hdMode', enabled, true)
+        g_settings.set('hdMode', enabled)
+
+        -- game_things es un modulo sandboxed: sus funciones globales viven en su
+        -- propia tabla de entorno, no en _G (globals.lua: modules = package.loaded).
+        -- Llamarla por el nombre pelado desde aqui daba nil y el cambio no hacia nada.
+        local gameThings = modules.game_things
+        if not gameThings or not gameThings.reloadThingsAssets then
+            g_logger.error('[hdMode] modules.game_things.reloadThingsAssets no disponible')
+            return
+        end
+        if not gameThings.reloadThingsAssets() then
+            displayErrorBox(tr('Graficos HD'),
+                tr('No se pudieron recargar los assets. Reinicia el cliente.'))
+        end
     end
 
 

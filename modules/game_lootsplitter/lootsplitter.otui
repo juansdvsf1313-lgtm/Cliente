@@ -22,7 +22,7 @@ NewHeadlessWindow
       margin-left: 95
       !text: tr('Hunt Session Log')
       text-wrap: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-auto-resize: true
       visible: false
@@ -72,7 +72,7 @@ NewHeadlessWindow
       margin-top: 5
       !text: tr('Hunt Session Result')
       text-wrap: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-auto-resize: true
     MultilineTextEdit

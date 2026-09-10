@@ -3,7 +3,9 @@ controller:registerEvents(g_game, {
     onClientVersionChange = function(version)
         -- g_game.enableFeature(GameKeepUnawareTiles)
         -- g_game.enableFeature(GameNegativeOffset)
-        -- g_game.enableFeature(GameWingsAurasEffectsShader)
+        -- alas / auras / efectos / shaders: sin esto la ventana de outfit
+        -- no ensena esas pestanas aunque el servidor mande la lista
+        g_game.enableFeature(GameWingsAurasEffectsShader)
         -- g_game.enableFeature(GameCreaturePaperdoll)
         -- g_game.enableFeature(GameAllowCustomBotScripts)
 

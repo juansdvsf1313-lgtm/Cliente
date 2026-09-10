@@ -139,6 +139,14 @@ Helpers.green = "#44ad25"
 Helpers.red = "#d33c3c"
 Helpers.grey = "#c0c0c0"
 
+-- Texto por defecto de la caja de ayuda, igual que el cliente oficial.
+Helpers.defaultDescription = table.concat({
+    "The aim of a fusion is to increase the tier of an item.",
+    "The classification of an item defines its maximum tier.",
+    "If two items are fused, you can spend exaltation cores.",
+    "Items with a tier grant unique bonuses.",
+}, string.char(10))
+
 function Helpers.handleDescription(data, currentType)
     if currentType == "convert-dust" then
         data.description =

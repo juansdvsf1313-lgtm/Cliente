@@ -288,7 +288,7 @@ MainWindow
 
     Label
       anchors.fill: parent
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf88
       !text: tr('Rank')
       text-offset: 5 3
@@ -306,7 +306,7 @@ MainWindow
 
     Label
       anchors.fill: parent
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf88
       !text: tr('Character')
       text-offset: 5 3
@@ -322,7 +322,7 @@ MainWindow
     anchors.left: prev.right
     !text: tr('Vocation')
     size: 116 20
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     color: #dfdfdf88
 
   VerticalSeparator
@@ -336,7 +336,7 @@ MainWindow
     anchors.left: prev.right
     !text: tr('Game World')  
     size: 85 20
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     color: #dfdfdf88
 
   VerticalSeparator
@@ -350,7 +350,7 @@ MainWindow
     anchors.left: prev.right
     !text: tr('Level')  
     size: 50 20
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     color: #dfdfdf88
 
   VerticalSeparator
@@ -370,7 +370,7 @@ MainWindow
       id: value
       anchors.top: parent.top
       anchors.right: parent.right
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       color: #dfdfdf88
       !text: tr('Points')  
       margin-right: 6

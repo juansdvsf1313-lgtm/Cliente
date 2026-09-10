@@ -154,6 +154,7 @@ local function inventoryEvent(player, slot, item, oldItem)
         end
         updateMonkMirrorItem(item)
     end
+
 end
 
 local function onSoulChange(localPlayer, soul)

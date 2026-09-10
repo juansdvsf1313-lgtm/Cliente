@@ -475,7 +475,7 @@ OutfitWindow < MainWindow
           anchors.verticalCenter: parent.verticalCenter
           anchors.left: parent.left
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Preset:
           text-offset: 15 0
           width: 84
@@ -505,7 +505,7 @@ OutfitWindow < MainWindow
           text-offset: 15 0
           text: Outfit:
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           width: 84
           color: #c0c0c0
           image-source: /images/ui/checkboxcircle
@@ -531,7 +531,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Mount:
           width: 84
           color: #c0c0c0
@@ -564,7 +564,7 @@ OutfitWindow < MainWindow
           text-offset: 15 0
           text: Familiar:
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           width: 84
           @onSetup: |
             if not g_game.getFeature(GamePlayerFamiliars) then
@@ -598,7 +598,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Wings:
           width: 84
           color: #c0c0c0
@@ -625,7 +625,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Aura:
           width: 84
           color: #c0c0c0
@@ -652,7 +652,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Shader:
           width: 84
           color: #c0c0c0
@@ -679,7 +679,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Health Bar:
           width: 84
           color: #c0c0c0
@@ -706,7 +706,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: Effects:
           width: 84
           color: #c0c0c0
@@ -733,7 +733,7 @@ OutfitWindow < MainWindow
           anchors.left: parent.left
           text-offset: 15 0
           size: 12 12
-          font: Verdana Bold-11px
+          font: verdana-bold_11
           text: title :
           width: 84
           color: #c0c0c0

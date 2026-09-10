@@ -1,5 +1,6 @@
 containerSettings = nil
 
+
 function init()
     g_ui.importStyle('container')
 
@@ -1162,6 +1163,15 @@ function onContainerUpdateItem(container, slot, item, oldItem)
         return
     end
     local itemWidget = container.itemsPanel:getChildById('item' .. slot)
+    if not itemWidget then
+        -- Sin esta guarda, un slot sin widget lanzaba un error de Lua y la
+        -- actualizacion se perdia en silencio: el hueco seguia mostrando el
+        -- item viejo (se veia duplicado). Mejor resincronizar el contenedor.
+        g_logger.warning('onContainerUpdateItem: no existe el widget item' .. slot ..
+                         ' (capacidad ' .. container:getCapacity() .. '), refrescando')
+        refreshContainerItems(container)
+        return
+    end
     itemWidget:setItem(item)
     ItemsDatabase.setRarityItem(itemWidget, item)
     ItemsDatabase.setTier(itemWidget, item)

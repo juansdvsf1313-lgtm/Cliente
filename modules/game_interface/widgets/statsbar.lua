@@ -20,7 +20,7 @@ local statsBarsDimensions = {
         height = 52
     },
     Default = {
-        height = 52
+        height = 35
     },
     Parallel = {
         height = 55
@@ -37,7 +37,7 @@ local currentStats = {
     placement = "hide"
 }
 
-local skillsLineHeight = 20
+local skillsLineHeight = 14
 local skillsTuples = {
     { skill = nil,             key = 'experience', icon = '/images/icons/icon_experience', placement = 'center', order = 0, name = "Level" },
     { skill = nil,             key = 'magic',      icon = '/images/icons/icon_magic',      placement = 'left',   order = 1, name = "Magic Level" },
@@ -109,13 +109,51 @@ local function reloadSkillsTab(skills, parent)
         widget.level = widget:getChildById('level')
         widget.icon = widget:getChildById('icon')
         widget.bar = widget:getChildById('bar')
+        widget.xpBoost = widget:getChildById('xpBoost')
+
+        -- Boton de XP Boost, solo en la fila de experiencia (como el cliente
+        -- oficial). En el resto de skills se deja con ancho 0 para que la barra
+        -- siga llegando hasta el borde derecho.
+        if widget.xpBoost then
+            if skillTuple.key == 'experience' then
+                widget.xpBoost:setWidth(78)
+                widget.xpBoost:setVisible(true)
+                widget.xpBoost.onClick = function()
+                    if modules.game_store and modules.game_store.toggle then
+                        modules.game_store.toggle()
+                    end
+                end
+                local restante = player.getStoreExpBoostTime and player:getStoreExpBoostTime() or 0
+                if restante > 0 then
+                    widget.xpBoost:setTooltip(string.format(
+                        tr('XP Boost') .. ': %02d:%02d h', math.floor(restante / 3600),
+                        math.floor((restante % 3600) / 60)))
+                else
+                    widget.xpBoost:setTooltip(tr('XP Boost'))
+                end
+            else
+                widget.xpBoost:setWidth(0)
+                widget.xpBoost:setVisible(false)
+            end
+        end
 
         widget.icon:setImageSource(skillTuple.icon)
         widget.icon:setTooltip(skillTuple.name)
 
         widget.bar.statsGrade = 4
-        widget.bar.statsGradeColor = '#070707ff'
+        -- Medido sobre un recorte real del cliente oficial: su barra de XP
+        -- vacia son dos lineas negras (0,0,0) con el fondo gris entre medias,
+        -- sin ranura oscura ni textura. El valor de fabrica era '#070707ff'.
+        widget.bar.statsGradeColor = '#000000ff'
         widget.bar:reloadBorder()
+
+        -- El oficial deja la barra de XP con el fondo transparente: solo se ven
+        -- las dos lineas del borde. OTClient pinta detras un StatsBarDarkBackground
+        -- con textura que tapa esa transparencia, asi que se apaga.
+        local fondo = widget.bar:getChildById('darkBg')
+        if fondo then
+            fondo:hide()
+        end
 
         widget.bar.showText = false
         if skillTuple.key == 'experience' then
@@ -291,6 +329,26 @@ function StatsBar.reloadCurrentStatsBarQuickInfo()
         end
     else
         bar.mana.showText = true
+
+        -- El cliente oficial muestra SIEMPRE el escudo magico junto al mana,
+        -- como "90/90 (0/0)", aunque no haya utamo vita activo. OTClient solo
+        -- lo hacia al tener escudo, y el resto del tiempo ponia "90/90" a secas.
+        -- El texto se corta SIN cerrar el parentesis: el icono y el ")" van
+        -- detras como widgets aparte, porque el oficial escribe "90/90 (0/0#)"
+        -- con el icono dentro y un Label no admite imagenes intercaladas.
+        bar.mana.manaShieldText = string.format('%d/%d (%d/%d',
+            mana, maxMana, manashield, maxManaShield)
+
+        local icono = bar.mana:getChildById('shieldIcon')
+        if icono then
+            icono:setVisible(true)
+            icono:raise()
+        end
+        local cierre = bar.mana:getChildById('shieldParen')
+        if cierre then
+            cierre:setVisible(true)
+            cierre:raise()
+        end
 
         if bar.mana.defaultHeight then
             bar.mana:setHeight(bar.mana.defaultHeight)
@@ -633,7 +691,16 @@ function StatsBar.updateStatsBarOption(dimension)
     StatsBar.hideAll()
     StatsBar.firstLoadSettings()
 
-    if currentStats.dimension ~= "hide" and dimension ~= "hide" then
+    -- Solo importa la dimension NUEVA. Comprobar tambien la actual dejaba la
+    -- barra atascada: una vez oculta, currentStats.dimension se quedaba en
+    -- "hide" y ya no se reconstruia aunque eligieras otra opcion en el menu.
+    -- OJO con el nil: updateStatsBarOption se llama a veces sin argumento, y
+    -- `nil ~= "hide"` es verdadero. Sin esta comprobacion se asignaba
+    -- currentStats.dimension = nil y reloadCurrentTab petaba al usarlo.
+    if dimension and dimension ~= "hide" then
+        currentStats.dimension = dimension
+        StatsBar.reloadCurrentTab()
+    elseif not dimension and currentStats.dimension and currentStats.dimension ~= "hide" then
         StatsBar.reloadCurrentTab()
     end
 end
@@ -701,7 +768,13 @@ function StatsBar.initProficiencyTopBar()
     local profWidget = statsBar:recursiveGetChildById('proficiencyTopBar')
     if profWidget then
         profWidget:setVisible(true)
-        modules.game_proficiency.updateTopBarProficiency()
+        -- game_proficiency puede no estar cargado todavia: game_healthcircle
+        -- dispara updateStatsBar durante su init, antes de que el modulo exista.
+        -- El resto de llamadas del cliente ya comprueban esto (inventory.lua:151,
+        -- gameinterface.lua:651, inspect.lua:195); aqui faltaba.
+        if modules.game_proficiency then
+            modules.game_proficiency.updateTopBarProficiency()
+        end
     end
 end
 

@@ -42,7 +42,7 @@ MiniWindow
       anchors.left: parent.left
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: session
@@ -51,7 +51,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: rawXpLabel
@@ -61,7 +61,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: false
 
     Label
@@ -71,7 +71,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: false
 
     Label
@@ -82,7 +82,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: xpGain
@@ -92,7 +92,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: rawXpHourLabel
@@ -102,7 +102,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: false
 
     Label
@@ -112,7 +112,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: false
 
     Label
@@ -123,7 +123,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: xpHour
@@ -133,7 +133,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: lootLabel
@@ -143,7 +143,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -162,7 +162,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: suppliesLabel
@@ -172,7 +172,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -191,7 +191,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: balanceLabel
@@ -201,7 +201,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     UIWidget
       size: 9 9
@@ -220,7 +220,7 @@ MiniWindow
       margin-right: 4
       text-auto-resize: true
       color: #44ad25
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: damageLabel
@@ -230,7 +230,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: damage
@@ -240,7 +240,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: damageHourLabel
@@ -250,7 +250,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: damageHour
@@ -260,7 +260,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: healLabel
@@ -270,7 +270,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: healing
@@ -280,7 +280,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: healHourLabel
@@ -290,7 +290,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: healHour
@@ -300,7 +300,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: killedMonstersLabel
@@ -310,7 +310,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Panel
       size: 145 15
@@ -327,7 +327,7 @@ MiniWindow
         anchors.left: parent.left
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
     Label
       id: lootedItemsLabel
@@ -337,7 +337,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Panel
       size: 145 15
@@ -354,7 +354,7 @@ MiniWindow
         anchors.left: parent.left
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
   UIWidget
     id: miniborder

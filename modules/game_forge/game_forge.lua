@@ -78,7 +78,11 @@ local function resetInfo()
     ForgeController.showResult = false
     ForgeController.showBonus = false
     ForgeController.result = cloneValue(Helpers.baseResult)
-    ForgeController.description = ""
+    -- El cliente oficial muestra 4 lineas fijas de ayuda cuando no hay nada
+    -- bajo el raton; aqui la caja se quedaba vacia.
+    ForgeController.description = Helpers.defaultDescription
+    -- se expone en el controlador para que la plantilla pueda compararlo
+    ForgeController.defaultDescription = Helpers.defaultDescription
     ForgeController.waitingForResult = false
     if ForgeController.resultTimeout then
         removeEvent(ForgeController.resultTimeout)
@@ -86,7 +90,11 @@ local function resetInfo()
     end
 end
 
-function ForgeController:handleDescription(currentType)
+function ForgeController:handleDescription(currentType, hovered)
+    if hovered == false then
+        ForgeController.description = Helpers.defaultDescription
+        return
+    end
     Helpers.handleDescription(ForgeController, currentType)
 end
 
@@ -572,8 +580,18 @@ ForgeController.fusion = {
 
 -- Store callback in ForgeController to prevent garbage collection
 ForgeController.fusion.handleSelect = function(item)
-    ForgeController.fusion.selectedTarget = cloneValue(ForgeController.baseSelected)
-    ForgeController:handleSelect(ForgeController.fusion, item, false)
+    -- [TRAZA TEMPORAL] captura el error al seleccionar y lo escribe al momento,
+    -- porque el log del cliente se pierde si revienta antes de volcarse.
+    local ok, err = pcall(function()
+        ForgeController.fusion.selectedTarget = cloneValue(ForgeController.baseSelected)
+        ForgeController:handleSelect(ForgeController.fusion, item, false)
+    end)
+    if not ok then
+        local texto = 'ERROR al seleccionar item:' .. string.char(10) .. tostring(err) ..
+                      string.char(10) .. debug.traceback('', 2)
+        pcall(function() g_resources.writeFileContentsToWorkDir('traza_error_forge.txt', texto) end)
+        g_logger.error(texto)
+    end
 end
 
 -- Store callback in ForgeController to prevent garbage collection
@@ -972,6 +990,11 @@ function forgeData(data)
     -- CONVERSION
 end
 
+-- [TRAZA TEMPORAL] registra que devuelve getColor para cada etiqueta
+local function __anotarColor(tipo, valor)
+    return valor
+end
+
 function ForgeController:getColor(currentType)
     ForgeController.conversion:handleButtons()
     local red = Helpers.red
@@ -980,37 +1003,37 @@ function ForgeController:getColor(currentType)
 
     if currentType == "dustToSilver" then
         if self.currentDust >= self.conversion.necessaryDustToSliver then
-            return base
+            return __anotarColor(currentType, base)
         else
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "sliverToCore" then
         if self.currentSlivers >= self.conversion.sliverToCore then
-            return base
+            return __anotarColor(currentType, base)
         else
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "increaseDustLimit" then
         if self.currentDust >= self.conversion.dustMaxIncreaseCost then
-            return base
+            return __anotarColor(currentType, base)
         else
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "fusion-preview-count-label" then
         if self.fusion.selected.id == -1 then
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "transfer-preview-count-label" then
         if self.transfer.selected.id == -1 then
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
@@ -1021,13 +1044,13 @@ function ForgeController:getColor(currentType)
         end
 
         if self.currentDust < necessaryDust then
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "transfer-dust" or currentType == "transfer-exalted" then
         if self.transfer.selected.id == -1 then
-            return red
+            return __anotarColor(currentType, red)
         end
 
         if currentType == "transfer-dust" then
@@ -1036,51 +1059,51 @@ function ForgeController:getColor(currentType)
                 self.transfer.dustLabel = necessaryDust
             end
             if self.currentDust < necessaryDust then
-                return red
+                return __anotarColor(currentType, red)
             end
         end
         if currentType == "transfer-exalted" then
             if self.currentExaltedCores < self.transfer.necessaryExaltedCores then
-                return red
+                return __anotarColor(currentType, red)
             end
         end
     end
 
     if currentType == "price" then
         if self.rawPrice == 0 or self.rawPrice > self.rawCurrentGold then
-            return red
+            return __anotarColor(currentType, red)
         end
     end
 
     if currentType == "improve-chance" then
         if not self.fusion.chanceImprovedChecked then
-            return red
+            return __anotarColor(currentType, red)
         else
-            return green
+            return __anotarColor(currentType, green)
         end
     end
 
     if currentType == "reduce-loss" then
         if not self.fusion.reduceTierLossChecked then
-            return red
+            return __anotarColor(currentType, red)
         else
-            return green
+            return __anotarColor(currentType, green)
         end
     end
 
     if currentType == "improve-chance-cost" then
-        if self.currentExaltedCores <= 0 then return red end
+        if self.currentExaltedCores <= 0 then return __anotarColor(currentType, red) end
 
-        if self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1 then return red end
+        if self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1 then return __anotarColor(currentType, red) end
     end
 
     if currentType == "reduce-loss-cost" then
-        if self.currentExaltedCores <= 0 then return red end
+        if self.currentExaltedCores <= 0 then return __anotarColor(currentType, red) end
 
-        if self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1 then return red end
+        if self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1 then return __anotarColor(currentType, red) end
     end
 
-    return base
+    return __anotarColor(currentType, base)
 end
 
 -- CONVERSION MENU
@@ -1218,7 +1241,10 @@ function onBrowseForgeHistory(page, lastPage, currentCount, historyList)
     ForgeController.history.showNextButton = page < lastPage
 
     for _, entry in ipairs(historyList) do
+        -- La plantilla no resolvia {{row.createdAt}} y pintaba el marcador crudo.
+        -- Se expone en un campo propio ya formateado.
         entry.createdAt = Helpers.formatHistoryDate(entry.createdAt)
+        entry.fecha = tostring(entry.createdAt or 'Unknown')
         -- Convert actionType to number if it's a string, then look up the label
         local actionTypeNum = tonumber(entry.actionType) or entry.actionType
         entry.actionType = historyActionLabels[actionTypeNum] or 'Unknown'
@@ -1231,6 +1257,7 @@ function onBrowseForgeHistory(page, lastPage, currentCount, historyList)
         end
     end
     ForgeController.history.list = historyList or {}
+
 end
 
 function ForgeController.history.onHistoryPreviousPage()

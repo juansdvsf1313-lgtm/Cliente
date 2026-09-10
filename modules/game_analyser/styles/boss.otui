@@ -20,7 +20,7 @@ BossInfo < UIWidget
     margin-top: 1
     margin-left: 5
     !text: tr('Test Boss Name')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #f4f4f4
     text-auto-resize: true
     phantom: true
@@ -33,7 +33,7 @@ BossInfo < UIWidget
     margin-top: 1
     margin-left: 5
     !text: tr('No Cooldown')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
     text-auto-resize: true
     phantom: true

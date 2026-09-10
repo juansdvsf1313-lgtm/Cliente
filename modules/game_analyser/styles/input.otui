@@ -8,14 +8,14 @@ DamageSourcePanel < UIWidget
     anchors.left: parent.left
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
   Label
     id: desc
     anchors.top: parent.top
     anchors.right: parent.right
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MiniWindow
   id: inputAnalyserMiniWindow
@@ -62,7 +62,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
     Label
       id: rcvDmgLabel
       !text: tr('Total:')
@@ -71,7 +71,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: rcvDmg
@@ -80,7 +80,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: maxDpsLabel
@@ -90,7 +90,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Label
       id: maxDps
@@ -99,7 +99,7 @@ MiniWindow
       anchors.right: parent.right
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     HorizontalSeparator
       id: separatorMaxDps
@@ -155,7 +155,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Panel
       id: dmgTypes
@@ -181,7 +181,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
 
     Panel
       id: dmgSrc
@@ -207,7 +207,7 @@ MiniWindow
       margin-top: 5
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       visible: true
 
     ScrollablePanel

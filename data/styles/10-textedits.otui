@@ -1,5 +1,5 @@
 TextEdit < UITextEdit
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   color: #c0c0c0
   padding-left: 2
   height: 16
@@ -15,7 +15,7 @@ TextEdit < UITextEdit
 
 PasswordTextEdit < TextEdit
   text-hidden: true
-  font: pVerdana Bold-11px
+  font: pverdana-bold_11
   color: #c0c0c0
   padding-top: 2
   padding-left: 3
@@ -24,7 +24,7 @@ MultilineTextEdit < TextEdit
   multiline: true
 
 TextQtEdit < UITextEdit
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   color: #c0c0c0ff
   size: 86 22
   text-offset: 0 4
@@ -103,7 +103,7 @@ HiddenTextQtToggleEdit < TextQtEdit
       image-clip: 0 20 19 20
       
 AccTextEdit < TextEdit
-  font: pVerdana Bold-11px
+  font: pverdana-bold_11
   color: #c0c0c0
   padding-left: 3
   padding-top: 2

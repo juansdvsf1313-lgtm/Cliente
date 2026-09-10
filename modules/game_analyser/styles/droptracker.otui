@@ -30,7 +30,7 @@ ItemPanel < Panel
     margin-left: 5
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   Label
     id: dropLabel
@@ -40,7 +40,7 @@ ItemPanel < Panel
     margin-left: 5
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   Label
     id: drops
@@ -50,7 +50,7 @@ ItemPanel < Panel
     margin-left: 5
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   Panel
     id: dropMonster
@@ -88,7 +88,7 @@ MonsterPanel < Panel
     margin-left: 5
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
   Label
     id: drops
     !text: tr('(0)')
@@ -97,7 +97,7 @@ MonsterPanel < Panel
     margin-left: 5
     text-auto-resize: true
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MiniWindow
   id: dropTrackerMiniWindow

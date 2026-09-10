@@ -1,7 +1,12 @@
 .forge-window {
   position: relative;
-  width: 470px;
+  /* medido: la ventana salia 517 px de ancho y el oficial mide 509 */
+  width: 462px;
   height: 405px;
+  /* Verdana real a 11 px: es la que usa el cliente oficial (medido: 9 px de
+     alto en texto normal, 10 con digitos, 11 en la cabecera). 'font' se
+     hereda, asi que cubre pestanas, cabecera, filas y pie. */
+  font: verdana-bold_11;
 }
 
 .tabs {
@@ -67,9 +72,10 @@
 
 /* FUSION MENU */
 .fusion-buttons-container {
+  /* medido: 85 px de alto frente a los 74 del oficial */
   margin-left: 8px;
   width: 140px;
-  height: 90px;
+  height: 79px;
 }
 .fusion-buttons-improve {
   padding: 3px 5px !important;
@@ -388,12 +394,15 @@
 
 .history-table tbody tr:nth-child(odd) {
   background-color: #484848;
-  color: white;
+  /* medido del cliente oficial: #C0C0C0, no blanco puro */
+  color: #c0c0c0;
+  font: verdana-bold_11;
 }
 
 .history-table tbody tr:nth-child(even) {
   background-color: #414141;
-  color: white;
+  color: #c0c0c0;
+  font: verdana-bold_11;
 }
 
 .history-footer {
@@ -547,4 +556,21 @@
   width: 380px;
   height: 2px;
   margin: 0;
+}
+
+/* Columna Action en cian, como el cliente oficial (medido #6BA9B0) */
+.history-action {
+  color: #6ba9b0;
+}
+
+/* Cabecera de la tabla en negrita, como el oficial */
+.history-table thead th {
+  font: verdana-bold_11;
+  color: #c0c0c0;
+}
+
+/* Los botones heredan cipsoftFont del estilo Button y salian mas altos
+   (13 px frente a los 8 del cliente oficial). Se igualan al resto. */
+.fusion-buttons-improve, .forge-footer, .history-footer {
+  font: verdana-bold_11;
 }

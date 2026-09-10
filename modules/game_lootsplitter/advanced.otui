@@ -25,7 +25,7 @@ PlayerOptionInfo < Panel
     anchors.left: prev.left
     margin-top: 5
     !text: tr('Remove Player')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     color: #C0C0C0
     image-source: /images/ui/checkbox

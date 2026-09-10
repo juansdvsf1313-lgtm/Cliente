@@ -70,6 +70,18 @@ local function ExprHandlerError(runtime, error, widget, controller, nodeStr, onE
     pwarning(error .. "\n\n------------------------------------")
 end
 
+-- Sujeta el closure de un deferEvent hasta que se ejecuta (referencia fuerte).
+local DEFERRED_HELD = {}
+local function deferEventHeld(fn)
+    local wrapped
+    wrapped = function()
+        DEFERRED_HELD[wrapped] = nil
+        fn()
+    end
+    DEFERRED_HELD[wrapped] = true
+    g_dispatcher.deferEvent(wrapped)
+end
+
 local function check_load(expr, chunkName, mode, env)
     if _VERSION == 'Lua 5.1' and loadstring then
         local fn, err = loadstring(expr, chunkName)
@@ -215,7 +227,12 @@ function UIWidget:__applyOrBindHtmlAttribute(attr, value, isInheritable, control
                 end
             end
 
-            g_dispatcher.deferEvent(function()
+            -- g_dispatcher.deferEvent guarda el closure solo con referencia DEBIL
+            -- (ver luavalue_cast en luavaluecasts.h) y no devuelve un evento al que
+            -- colgar '_callback' como hacen scheduleEvent/addEvent. Sin sujetarlo
+            -- aqui, el recolector se lo llevaba antes de ejecutarse y C++ fallaba con
+            -- 'attempt to call an expired lua function' (N veces por cada relayout).
+            deferEventHeld(function()
                 method(self, value)
             end)
         elseif value ~= nil then

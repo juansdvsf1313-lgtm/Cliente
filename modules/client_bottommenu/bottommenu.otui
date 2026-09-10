@@ -47,7 +47,7 @@ Panel
     text-auto-resize: true
     color: #c0c0c0ff
     margin-bottom: 110
-    text: OTClient Redemption
+    text: TheOne
     ttf-font: martel
     ttf-font-size: 90
     stroke: 2 black
@@ -64,7 +64,7 @@ Panel
     Label
       id: showOffWindowText
       !text: tr('Random Hint')
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       text-offset: 0 2
       text-align: top
       anchors.top: parent.top
@@ -84,7 +84,7 @@ Panel
 
     Label
       !text: tr('Event Schedule')
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       text-offset: 0 2
       text-align: top
       anchors.top: parent.top
@@ -146,7 +146,7 @@ Panel
 
     Label
       !text: tr('Boosted')
-      font: verdana-11px-antialised
+      font: verdana-bold_11
       text-offset: 0 2
       text-align: top
       anchors.top: parent.top

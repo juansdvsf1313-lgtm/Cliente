@@ -352,6 +352,11 @@ function updateTopBarProficiency()
         if label then
             label:setText('0%')
         end
+        -- Sin arma equipada el diamante va gris.
+        local boton = profWidget:getChildById('proficiencyButton')
+        if boton then
+            boton:setImageSource('/images/game/topbar/proficiency-button-grey')
+        end
         return
     end
 
@@ -375,10 +380,23 @@ function updateTopBarProficiency()
 
         if ProficiencyData and ProficiencyData.getCurrentLevelByExp and ProficiencyData.getLevelPercent then
             -- Get current level
-            currentLevel = ProficiencyData:getCurrentLevelByExp(leftSlotItem, exp, false, thingType) or 0
-            -- Get percent progress to next level
-            local nextLevel = currentLevel + 1
-            percent = ProficiencyData:getLevelPercent(exp, nextLevel, leftSlotItem, thingType) or 0
+            -- Con includeMastery=false el nivel se capa en 7: pasado ese punto el
+            -- "siguiente nivel" era siempre el 8, la exp lo superaba y el porcentaje
+            -- se clavaba en 100 (diamante verde) aunque quedara maestria por subir.
+            currentLevel = ProficiencyData:getCurrentLevelByExp(leftSlotItem, exp, true, thingType) or 0
+            -- Maximo POR ARMA: sus niveles + 2 de maestria (identico al servidor y a
+            -- getTotalPercent). Los niveles varian por arma (1, 3, 4, 5, 6 o 7), asi que
+            -- mirar si "existe el siguiente nivel" en la tabla fija de 9 era incorrecto.
+            local proficiencyId = ProficiencyData:getProficiencyIdForItem(leftSlotItem, thingType)
+            local perkCount = ProficiencyData:getPerkLaneCount(proficiencyId) or 0
+            local nivelMaximo = math.min(perkCount + 2, #ExperienceTable)
+            local nextLevel = math.min(currentLevel + 1, nivelMaximo)
+            local expMaxima = ProficiencyData:getMaxExperience(perkCount, leftSlotItem, thingType) or 0
+            if expMaxima > 0 and exp >= expMaxima then
+                percent = 100   -- proficiency completa para ESTA arma
+            else
+                percent = ProficiencyData:getLevelPercent(exp, nextLevel, leftSlotItem, thingType) or 0
+            end
 
             -- Get exp values for tooltip
             if ProficiencyData.getMaxExperienceByLevel then
@@ -413,10 +431,24 @@ function updateTopBarProficiency()
             highlight:setVisible(WeaponProficiency.hasUnusedPerk == true)
         end
 
+        -- El diamante original ya es verde; se usa una copia en escala de grises
+        -- mientras la proficiency no llega al 100%, y el verde al alcanzarlo.
+        local boton = profWidget:getChildById('proficiencyButton')
+        if boton then
+            boton:setImageSource(percent >= 100
+                and '/images/game/topbar/proficiency-button'
+                or '/images/game/topbar/proficiency-button-grey')
+        end
         -- Store for reference
         WeaponProficiency.currentEquippedExp = exp
         WeaponProficiency.currentEquippedMaxExp = nextLevelExp
     else
+        -- Aun no han llegado los datos del servidor: se piden, y mientras el
+        -- diamante va gris (antes esta rama salia sin tocar la imagen).
+        local boton = profWidget:getChildById('proficiencyButton')
+        if boton then
+            boton:setImageSource('/images/game/topbar/proficiency-button-grey')
+        end
         g_game.sendWeaponProficiencyAction(0, itemId)
     end
 end

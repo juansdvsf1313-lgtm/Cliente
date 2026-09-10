@@ -1,14 +1,14 @@
 DatailsLabel < UILabel
   width: 520
   color: #c0c0c0
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   margin-left: 6
   margin-top: 1
   text-wrap: true
   text-auto-resize: true
 
 CategoryItemListLabel < Label
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   height: 16
   background-color: alpha
   text-offset: 1 -1
@@ -24,7 +24,7 @@ StatisticWidget < UIWidget
     anchors.top: parent.top
     anchors.left: parent.left
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     margin-left: 3
 
@@ -35,7 +35,7 @@ StatisticWidget < UIWidget
     anchors.left: parent.left
     margin-left: 11
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     margin-top: -1
 
@@ -46,7 +46,7 @@ StatisticWidget < UIWidget
     anchors.left: parent.left
     margin-left: 11
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     margin-top: -1
 
@@ -57,7 +57,7 @@ StatisticWidget < UIWidget
     anchors.left: parent.left
     margin-left: 11
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     margin-top: -1
 
@@ -68,7 +68,7 @@ StatisticWidget < UIWidget
     anchors.left: parent.left
     margin-left: 11
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     margin-top: -1
 
@@ -83,7 +83,7 @@ MarketHistoryWidget < UIWidget
     text-align: left
     text-offset: 1 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   UIWidget
     id: separator1
@@ -97,7 +97,7 @@ MarketHistoryWidget < UIWidget
     size: 54 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -119,7 +119,7 @@ MarketHistoryWidget < UIWidget
     size: 78 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -141,7 +141,7 @@ MarketHistoryWidget < UIWidget
     size: 78 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -165,7 +165,7 @@ MarketHistoryWidget < UIWidget
     text-align: left
     text-offset: 2 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   UIWidget
     anchors.left: prev.right
@@ -182,7 +182,7 @@ MarketHistoryWidget < UIWidget
     text-align: left
     text-offset: 2 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MarketCurrentWidget < UIWidget
   height: 16
@@ -195,7 +195,7 @@ MarketCurrentWidget < UIWidget
     text-align: left
     text-offset: 1 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   UIWidget
     id: separator1
@@ -209,7 +209,7 @@ MarketCurrentWidget < UIWidget
     size: 54 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -231,7 +231,7 @@ MarketCurrentWidget < UIWidget
     size: 78 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -253,7 +253,7 @@ MarketCurrentWidget < UIWidget
     size: 78 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -277,7 +277,7 @@ MarketCurrentWidget < UIWidget
     text-align: left
     text-offset: 2 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MarketOfferWidget < UIWidget
   height: 16
@@ -289,7 +289,7 @@ MarketOfferWidget < UIWidget
     text-align: left
     text-offset: 1 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
   UIWidget
     id: separator1
@@ -303,7 +303,7 @@ MarketOfferWidget < UIWidget
     size: 122 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -325,7 +325,7 @@ MarketOfferWidget < UIWidget
     size: 122 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -347,7 +347,7 @@ MarketOfferWidget < UIWidget
     size: 122 16
     text-align: right
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     anchors.top: parent.top
     anchors.left: prev.right
     margin-left: 2
@@ -371,7 +371,7 @@ MarketOfferWidget < UIWidget
     text-align: left
     text-offset: 2 -1
     color: #c0c0c0
-    font: Verdana Bold-11px
+    font: verdana-bold_11
 
 MarketItemList < UIWidget
   size: 36 36
@@ -417,7 +417,7 @@ MarketItemList < UIWidget
     id: name
     size: 108 32
     !text: tr("Unknow")
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #c0c0c0
     anchors.top: parent.top
     anchors.left: prev.right
@@ -539,7 +539,7 @@ MarketMainWindow < Panel
     id: lockerOnly
     size: 12 12
     !text: tr('Show Locker only')
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     text-auto-resize: true
     color: #C0C0C0
     text-offset: 14 -2
@@ -559,7 +559,7 @@ MarketMainWindow < Panel
     margin-top: 10
     !text: tr('Items:')
     text-auto-resize: true
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #C0C0C0
 
   TextList
@@ -619,7 +619,7 @@ MarketMainWindow < Panel
     margin-left: 7
     !text: tr('Search:')
     text-auto-resize: true
-    font: Verdana Bold-11px
+    font: verdana-bold_11
     color: #C0C0C0
 
   TextEdit
@@ -663,7 +663,7 @@ MarketMainWindow < Panel
       margin-left: 1
       !text: tr('Details:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     TextList
@@ -699,7 +699,7 @@ MarketMainWindow < Panel
       margin-left: 1
       !text: tr('Statistics:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     TextList
@@ -745,7 +745,7 @@ MarketMainWindow < Panel
       margin-left: -1
       !text: tr('Sell Offers:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -755,7 +755,7 @@ MarketMainWindow < Panel
       margin-left: 277
       !text: tr('Amount:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -766,7 +766,7 @@ MarketMainWindow < Panel
       margin-right: 344
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-align: right
       text-auto-resize: true
@@ -791,7 +791,7 @@ MarketMainWindow < Panel
       margin-top: -1
       !text: tr('Total:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -802,7 +802,7 @@ MarketMainWindow < Panel
       margin-top: -3
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Button
@@ -858,7 +858,7 @@ MarketMainWindow < Panel
       size: 243 15
       text: Name
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: sellOffersList.top
@@ -884,7 +884,7 @@ MarketMainWindow < Panel
       id: amountButton
       size: 128 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 34 -1
       anchors.top: sellOffersList.top
@@ -910,7 +910,7 @@ MarketMainWindow < Panel
       id: piecepriceButton
       size: 128 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 23 -1
       anchors.top: sellOffersList.top
@@ -936,7 +936,7 @@ MarketMainWindow < Panel
       id: totalpriceButton
       size: 128 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 24 -1
       anchors.top: sellOffersList.top
@@ -962,7 +962,7 @@ MarketMainWindow < Panel
       id: endButton
       size: 150 15
       text: Ends At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -997,7 +997,7 @@ MarketMainWindow < Panel
       margin-left: -1
       !text: tr('Buy Offers:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1007,7 +1007,7 @@ MarketMainWindow < Panel
       margin-left: 277
       !text: tr('Amount:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1019,7 +1019,7 @@ MarketMainWindow < Panel
       !text: tr('0')
       text-align: right
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     HorizontalScrollBar
@@ -1042,7 +1042,7 @@ MarketMainWindow < Panel
       margin-top: -1
       !text: tr('Total:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1053,7 +1053,7 @@ MarketMainWindow < Panel
       margin-top: -3
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Button
@@ -1110,7 +1110,7 @@ MarketMainWindow < Panel
       size: 243 15
       text: Name
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: buyOffersList.top
@@ -1136,7 +1136,7 @@ MarketMainWindow < Panel
       id: amountButton
       size: 128 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 34 -1
       anchors.top: buyOffersList.top
@@ -1162,7 +1162,7 @@ MarketMainWindow < Panel
       id: piecepriceButton
       size: 128 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 23 -1
       anchors.top: buyOffersList.top
@@ -1188,7 +1188,7 @@ MarketMainWindow < Panel
       id: totalpriceButton
       size: 128 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 24 -1
       anchors.top: buyOffersList.top
@@ -1214,7 +1214,7 @@ MarketMainWindow < Panel
       id: endButton
       size: 150 15
       text: Ends At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -1247,14 +1247,14 @@ MarketMainWindow < Panel
       margin-top: 10
       !text: tr('Create Offer:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     CheckBox
       id: createOfferSell
       size: 12 12
       !text: tr('Sell')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #C0C0C0
       text-offset: 16 -2
@@ -1273,7 +1273,7 @@ MarketMainWindow < Panel
       id: createOfferBuy
       size: 12 12
       !text: tr('Buy')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #C0C0C0
       text-offset: 16 -2
@@ -1295,7 +1295,7 @@ MarketMainWindow < Panel
       margin-left: 336
       !text: tr('Amount: 0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     HorizontalScrollBar
@@ -1319,7 +1319,7 @@ MarketMainWindow < Panel
       margin-top: 4
       !text: tr('Piece Price:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     TextEdit
@@ -1345,7 +1345,7 @@ MarketMainWindow < Panel
       text-align: right
       !text: tr('Gross Profit:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1355,7 +1355,7 @@ MarketMainWindow < Panel
       margin-right: 5
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Panel
@@ -1372,7 +1372,7 @@ MarketMainWindow < Panel
       margin-top: 5
       !text: tr('Fee:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1382,7 +1382,7 @@ MarketMainWindow < Panel
       margin-right: 5
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Panel
@@ -1408,7 +1408,7 @@ MarketMainWindow < Panel
       margin-top: 5
       !text: tr('Total Profit:')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Label
@@ -1418,7 +1418,7 @@ MarketMainWindow < Panel
       margin-right: 5
       !text: tr('0')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Panel
@@ -1432,7 +1432,7 @@ MarketMainWindow < Panel
       id: anonymous
       size: 12 12
       !text: tr('Anonymous')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #C0C0C0
       text-offset: 14 -2
@@ -1501,7 +1501,7 @@ MarketMainWindow < Panel
       margin-top: 3
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       tooltip-font: Verdana Bold-11px-wheel
 
   Panel
@@ -1527,7 +1527,7 @@ MarketMainWindow < Panel
       margin-top: 3
       text-auto-resize: true
       color: #c0c0c0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       tooltip-font: Verdana Bold-11px-wheel
 
   Button
@@ -1625,7 +1625,7 @@ MarketHistory < Panel
       margin-top: 7
       margin-left: 1
       !text: tr('Sell Offers (0):')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #C0C0C0
 
@@ -1661,7 +1661,7 @@ MarketHistory < Panel
       size: 502 15
       text: Item
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: sellOffersList.top
@@ -1687,7 +1687,7 @@ MarketHistory < Panel
       id: amountButton
       size: 59 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 4 -1
       text-align: leftCenter
@@ -1714,7 +1714,7 @@ MarketHistory < Panel
       id: piecepriceButton
       size: 84 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -1741,7 +1741,7 @@ MarketHistory < Panel
       id: totalpriceButton
       size: 84 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -1769,7 +1769,7 @@ MarketHistory < Panel
       size: 220 15
       //220 tela 1 - 149 tela 2
       text: Ended At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -1799,7 +1799,7 @@ MarketHistory < Panel
       id: sellStatusButton
       size: 70 15
       text: Status
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -1835,7 +1835,7 @@ MarketHistory < Panel
       margin-left: 1
       !text: tr('Buy Offers (0):')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     Button
@@ -1877,7 +1877,7 @@ MarketHistory < Panel
       size: 502 15
       text: Item
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: buyOffersList.top
@@ -1903,7 +1903,7 @@ MarketHistory < Panel
       id: amountButton
       size: 59 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 4 -1
       text-align: leftCenter
@@ -1930,7 +1930,7 @@ MarketHistory < Panel
       id: piecepriceButton
       size: 84 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -1957,7 +1957,7 @@ MarketHistory < Panel
       id: totalpriceButton
       size: 84 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -1984,7 +1984,7 @@ MarketHistory < Panel
       id: buyEndButton
       size: 220 15
       text: Ended At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2014,7 +2014,7 @@ MarketHistory < Panel
       id: buyStatusButton
       size: 70 15
       text: Status
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2071,7 +2071,7 @@ MarketHistory < Panel
         margin-top: 3
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
     Panel
       id: coinPanel
@@ -2096,7 +2096,7 @@ MarketHistory < Panel
         margin-top: 3
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
     Button
       id: getCoins
@@ -2154,7 +2154,7 @@ MarketHistory < Panel
       margin-top: 7
       margin-left: 1
       !text: tr('Sell Offers (0):')
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-auto-resize: true
       color: #C0C0C0
 
@@ -2189,7 +2189,7 @@ MarketHistory < Panel
       size: 502 15
       text: Item
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: sellOffersList.top
@@ -2211,7 +2211,7 @@ MarketHistory < Panel
       id: amountButton
       size: 59 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 4 -1
       text-align: leftCenter
@@ -2234,7 +2234,7 @@ MarketHistory < Panel
       id: piecepriceButton
       size: 84 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -2257,7 +2257,7 @@ MarketHistory < Panel
       id: totalpriceButton
       size: 84 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -2280,7 +2280,7 @@ MarketHistory < Panel
       id: sellEndButton
       size: 149 15
       text: Ended At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2303,7 +2303,7 @@ MarketHistory < Panel
       id: sellStatusButton
       size: 70 15
       text: Status
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2334,7 +2334,7 @@ MarketHistory < Panel
       margin-left: 1
       !text: tr('Buy Offers (0):')
       text-auto-resize: true
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
 
     TextList
@@ -2368,7 +2368,7 @@ MarketHistory < Panel
       size: 502 15
       text: Item
       color: #C0C0C0
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       text-offset: 1 -1
       text-align: leftCenter
       anchors.top: buyOffersList.top
@@ -2390,7 +2390,7 @@ MarketHistory < Panel
       id: amountButton
       size: 59 15
       text: Amount
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 4 -1
       text-align: leftCenter
@@ -2413,7 +2413,7 @@ MarketHistory < Panel
       id: piecepriceButton
       size: 84 15
       text: Piece Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -2436,7 +2436,7 @@ MarketHistory < Panel
       id: totalpriceButton
       size: 84 15
       text: Total Price
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 7 -1
       text-align: leftCenter
@@ -2459,7 +2459,7 @@ MarketHistory < Panel
       id: buyEndButton
       size: 149 15
       text: Ended At
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2482,7 +2482,7 @@ MarketHistory < Panel
       id: buyStatusButton
       size: 70 15
       text: Status
-      font: Verdana Bold-11px
+      font: verdana-bold_11
       color: #C0C0C0
       text-offset: 1 -1
       text-align: leftCenter
@@ -2534,7 +2534,7 @@ MarketHistory < Panel
         margin-top: 3
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
     Panel
       id: coinPanel
@@ -2559,7 +2559,7 @@ MarketHistory < Panel
         margin-top: 3
         text-auto-resize: true
         color: #c0c0c0
-        font: Verdana Bold-11px
+        font: verdana-bold_11
 
     Button
       id: getCoins

@@ -54,7 +54,7 @@ RewardButton < UIWidget
     image-clip: 0 0 66 20
 
 RewardButton3 < UIButton
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   color: #dfdfdfff
   size: 106 23
   text-offset: 0 0
@@ -187,7 +187,7 @@ TESDTSTST < Panel
     margin-top: 10
 
 TextListWithScroll < Panel
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   width: 192
   text-offset: 24 5
   text-align: topLeft

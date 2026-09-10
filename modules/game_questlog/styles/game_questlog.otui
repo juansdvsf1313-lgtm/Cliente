@@ -1,5 +1,5 @@
 TextListQuestLog < Panel
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   width: 192
   text-offset: 24 5
   text-align: topLeft
@@ -30,7 +30,7 @@ TextListQuestLog < Panel
     pixels-scroll: true
 
 MultiLineQuestLog < Panel
-  font: verdana-11px-antialised
+  font: verdana-bold_11
   width: 192
   text-offset: 24 5
   text-align: topLeft

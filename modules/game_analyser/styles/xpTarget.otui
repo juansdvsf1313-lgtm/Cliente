@@ -2,7 +2,7 @@ NewMainWindow
   id: setXpTarget
   anchors.horizontalCenter: parent.horizontalCenter
   !text: tr('Set XP Per Hour Target')
-  font: Verdana Bold-11px
+  font: verdana-bold_11
   color: #909090
   size: 360 147
   @onClose:

@@ -11,7 +11,7 @@ MainWindow
     id: headerLabel
     !text: tr('Edit Name')
     text-align: center
-    font: verdana-11px-antialised
+    font: verdana-bold_11
     color: #909090
     anchors.top: parent.top
     anchors.left: parent.left

@@ -3,6 +3,49 @@ local MAP_SHADERS = { {
     name = 'Map - Default',
     frag = nil
 }, {
+    -- Escalado dirigido por bordes: suaviza el pixelado reconstruyendo las
+    -- diagonales, sin desenfocar. Lo mas parecido a HD sin arte nuevo.
+    name = 'Map - HD Edge',
+    frag = 'shaders/fragment/hd_edge.frag',
+    useFramebuffer = true
+}, {
+    -- Super-resolucion estilo waifu2x ("Single-Image Super-Resolution for
+    -- Anime-Style Art using Deep Convolutional Neural Networks"): analiza la
+    -- estructura local, reconstruye siguiendola y devuelve el detalle como
+    -- residuo. Mas caro que HD Edge (16 lecturas por pixel) pero es el que
+    -- realmente parece HD: diagonales continuas y contornos que no se pierden.
+    name = 'Map - HD Anime SR',
+    frag = 'shaders/fragment/hd_anime_sr.frag',
+    useFramebuffer = true
+}, {
+    -- Mismo shader, menos desenfoque en las zonas sin borde (suelo, piedra):
+    -- SIGMA_FLAT es lo que decide si esas zonas se ven definidas o lavadas.
+    name = 'Map - HD Anime SR (Nitido)',
+    frag = 'shaders/fragment/hd_anime_sr.frag',
+    useFramebuffer = true,
+    defines = {
+        SR_SIGMA_FLAT = '0.48',
+        SR_SIGMA_ALONG = '0.82',
+        SR_SIGMA_ACROSS = '0.22',
+        SR_SHARPNESS = '0.95',
+        SR_LINE_DARK = '0.30'
+    }
+}, {
+    -- El mas HD de los tres: en zona plana casi no promedia, asi que la textura
+    -- queda tan definida como sin shader, y el suavizado se reserva solo para
+    -- las diagonales. Si algun suelo con dithering te pica demasiado, sube
+    -- SR_SIGMA_FLAT a 0.44 o baja SR_SHARPNESS.
+    name = 'Map - HD Anime SR (Cristalino)',
+    frag = 'shaders/fragment/hd_anime_sr.frag',
+    useFramebuffer = true,
+    defines = {
+        SR_SIGMA_FLAT = '0.32',
+        SR_SIGMA_ALONG = '0.80',
+        SR_SIGMA_ACROSS = '0.18',
+        SR_SHARPNESS = '1.20',
+        SR_LINE_DARK = '0.35'
+    }
+}, {
     name = 'Map - Fog',
     frag = 'shaders/fragment/fog.frag',
     tex1 = 'images/clouds'
@@ -121,12 +164,35 @@ local function attachShaders()
     end
 end
 
+-- g_shaders compila en un evento diferido y se queda con el puntero crudo de la
+-- cadena, no con una copia. Las fuentes generadas se guardan aqui para que el
+-- recolector de Lua no las libere antes de que se compilen.
+local generatedSources = {}
+
+-- Un preset es el mismo .frag con otras constantes: se le anteponen los #define
+-- y se compila desde codigo, asi no hay tres copias del algoritmo que mantener
+-- en paralelo. Los valores van como texto a proposito: string.format('%f') usa
+-- el separador decimal del sistema y en un Windows en espanol escribiria "0,48",
+-- que GLSL no entiende.
+local buildSource = function(opts, path)
+    local prefix = ''
+    for key, value in pairs(opts.defines) do
+        prefix = prefix .. string.format('#define %s %s\n', key, value)
+    end
+    return prefix .. g_resources.readFileContents(path)
+end
+
 local registerShader = function(opts, method)
     local fragmentShaderPath = resolvepath(opts.frag)
 
     if fragmentShaderPath ~= nil then
-        --  local shader = g_shaders.createShader()
-        g_shaders.createFragmentShader(opts.name, opts.frag, opts.useFramebuffer or false)
+        if opts.defines then
+            generatedSources[opts.name] = buildSource(opts, fragmentShaderPath)
+            g_shaders.createFragmentShaderFromCode(opts.name, generatedSources[opts.name],
+                opts.useFramebuffer or false)
+        else
+            g_shaders.createFragmentShader(opts.name, opts.frag, opts.useFramebuffer or false)
+        end
 
         if opts.tex1 then
             g_shaders.addMultiTexture(opts.name, opts.tex1)
@@ -140,30 +206,43 @@ local registerShader = function(opts, method)
     end
 end
 
+-- Un shader que no compile NO debe abortar onInit: si eso ocurre, el Keybind de
+-- Ctrl+Y nunca llega a registrarse (esta al final) y la ventana de shaders queda
+-- inaccesible sin ninguna pista de por que.
+local registerShaderSafe = function(opts, method)
+    local ok, err = pcall(registerShader, opts, method)
+    if not ok then
+        g_logger.error(string.format("[game_shaders] no se pudo registrar '%s': %s",
+            tostring(opts.name), tostring(err)))
+    end
+end
+
 ShaderController = Controller:new()
 
 function ShaderController:onInit()
     for _, opts in pairs(MAP_SHADERS) do
-        registerShader(opts, 'setupMapShader')
+        registerShaderSafe(opts, 'setupMapShader')
     end
 
     for _, opts in pairs(OUTFIT_SHADERS) do
-        registerShader(opts, 'setupOutfitShader')
+        registerShaderSafe(opts, 'setupOutfitShader')
     end
 
     for _, opts in pairs(MOUNT_SHADERS) do
-        registerShader(opts, 'setupMountShader')
+        registerShaderSafe(opts, 'setupMountShader')
     end
 
     for _, opts in pairs(TEXT_SHADERS) do
-        registerShader(opts, 'setupTextShader')
+        registerShaderSafe(opts, 'setupTextShader')
     end
 
+    g_logger.info(string.format("[game_shaders] shaders de mapa registrados: %d", #MAP_SHADERS))
     Keybind.new('Windows', 'show/hide Shader Windows', HOTKEY, '')
     Keybind.bind('Windows', 'show/hide Shader Windows', {
         {
             type = KEY_DOWN,
             callback = function()
+                g_logger.info("[game_shaders] atajo pulsado")
                 if ShaderController.ui then
                     ShaderController:unloadHtml()
                 else
