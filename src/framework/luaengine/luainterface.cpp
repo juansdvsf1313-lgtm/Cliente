@@ -1397,6 +1397,20 @@ std::string LuaInterface::getSource(const int level)
     return std::string(ar.short_src) + ":" + std::to_string(ar.currentline);
 }
 
+// [TRAZA] identifica la funcion lua que se pasa a C++, para poder decir cual expira
+std::string LuaInterface::functionSource(int index)
+{
+    if (index < 0)
+        index = lua_gettop(L) + index + 1;
+
+    lua_Debug ar;
+    memset(&ar, 0, sizeof(ar));
+    lua_pushvalue(L, index);
+    if (lua_getinfo(L, ">S", &ar) == 0)
+        return "?";
+    return std::string(ar.short_src) + ":" + std::to_string(ar.linedefined);
+}
+
 void LuaInterface::loadFiles(const std::string& directory, const bool recursive, const std::string& contains)
 {
     for (const std::string& fileName : g_resources.listDirectoryFiles(directory)) {

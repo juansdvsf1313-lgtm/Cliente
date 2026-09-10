@@ -22,6 +22,8 @@
 
 #include "container.h"
 
+#include <algorithm>
+
 #include "item.h"
 
 ItemPtr Container::getItem(const int slot)
@@ -57,7 +59,17 @@ void Container::onAddItem(const ItemPtr& item, int slot)
         ++m_size;
     }
 
-    m_items.insert(m_items.begin() + slot, item);
+    // El slot que manda el servidor puede caer fuera de rango (p.ej. al
+    // intercambiar equipado<->contenedor, o con paginacion desincronizada).
+    // Sin acotarlo, insert() con un iterador invalido es comportamiento
+    // indefinido y el item acababa en una posicion incorrecta.
+    const auto insertPos = std::clamp<int>(slot, 0, static_cast<int>(m_items.size()));
+    if (insertPos != slot) {
+        g_logger.warning("Container::onAddItem - contenedor {}: slot {} fuera de rango (items: {}, firstIndex: {}, capacity: {}), se inserta en {}",
+                         m_id, slot, m_items.size(), m_firstIndex, m_capacity, insertPos);
+    }
+
+    m_items.insert(m_items.begin() + insertPos, item);
     ++m_size;
 
     updateItemsPositions();
@@ -85,7 +97,14 @@ void Container::onUpdateItem(int slot, const ItemPtr& item)
 {
     slot -= m_firstIndex;
     if (slot < 0 || slot >= static_cast<int>(m_items.size())) {
-        g_logger.traceError("slot not found");
+        // Salir aqui sin borrar deja el item viejo en la lista mientras el 'add'
+        // que viene detras inserta el nuevo: el item se ve DUPLICADO aunque el
+        // servidor tenga uno solo. El traceError original no se escribe en
+        // compilacion release, asi que el fallo era invisible.
+        // OJO: no sirve pedir refreshContainer -- el opcode 202 que envia el
+        // cliente lo interpreta Canary como parseExivaRestrictions en 15.25.
+        g_logger.warning("Container::onUpdateItem - contenedor {}: slot {} fuera de rango (items: {}, firstIndex: {}, capacity: {}, size: {}) -> update DESCARTADO, el widget se queda con el item viejo",
+                         m_id, slot, m_items.size(), m_firstIndex, m_capacity, m_size);
         return;
     }
 
@@ -107,7 +126,11 @@ void Container::onRemoveItem(int slot, const ItemPtr& lastItem)
     }
 
     if (slot < 0 || slot >= static_cast<int>(m_items.size())) {
-        g_logger.traceError("slot not found");
+        // Salir aqui sin borrar deja el item viejo en la lista mientras el 'add'
+        // que viene detras inserta el nuevo: se ve DUPLICADO aunque el servidor
+        // tenga uno solo. traceError no se escribe en release -> era invisible.
+        g_logger.warning("Container::onRemoveItem - contenedor {}: slot {} fuera de rango (items: {}, firstIndex: {}, capacity: {}, size: {}) -> remove DESCARTADO",
+                         m_id, slot, m_items.size(), m_firstIndex, m_capacity, m_size);
         return;
     }
 

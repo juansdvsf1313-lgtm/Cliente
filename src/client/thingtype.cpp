@@ -22,6 +22,11 @@
 
 #include "thingtype.h"
 
+#include <atomic>
+#include <string>
+
+extern thread_local std::string g_blitContext;
+
 #include "animator.h"
 #include "game.h"
 #include "gameconfig.h"
@@ -53,6 +58,7 @@ namespace {
 #ifdef FRAMEWORK_PROTOBUF
 void ThingType::unserializeAppearance(const uint16_t clientId, const ThingCategory category, const appearances::Appearance& appearance)
 {
+    m_fromAppearances = true;
     m_null = false;
     m_id = clientId;
     m_category = category;
@@ -295,7 +301,12 @@ void ThingType::applyAppearanceFlags(const appearances::AppearanceFlags& flags)
     }
 
     if (flags.has_shift()) {
-        m_displacement = Point(flags.shift().x(), flags.shift().y());
+        // El shift viene en pixeles referidos a un tile de 32. En el dibujado se
+        // resta junto a m_size * getSpriteSize() (linea ~807), que SI escala con el
+        // tamano de sprite, asi que hay que escalarlo igual o los objetos con
+        // desplazamiento (mesas, muebles) quedan colocados a la mitad de camino.
+        const int shiftScale = std::max<int>(1, g_gameConfig.getSpriteSize() / 32);
+        m_displacement = Point(flags.shift().x() * shiftScale, flags.shift().y() * shiftScale);
         m_flags |= ThingFlagAttrDisplacement;
     }
 
@@ -872,7 +883,9 @@ void ThingType::loadTexture(const int animationPhase)
     const int indexSize = textureLayers * m_numPatternX * m_numPatternY * m_numPatternZ;
     const auto& textureSize = getBestTextureDimension(m_size.width(), m_size.height(), indexSize);
     const auto& fullImage = useCustomImage ? Image::load(m_customImage) : std::make_shared<Image>(textureSize * g_gameConfig.getSpriteSize());
-    const bool protobufSupported = g_game.isUsingProtobuf();
+    // Decide por el ORIGEN de los datos, no por el estado de la conexion.
+    const bool protobufSupported = m_fromAppearances || g_game.isUsingProtobuf();
+    g_blitContext = fmt::format("loadTexture thing={} cat={} m_size={}x{} fase={} protobuf={}", m_id, static_cast<int>(m_category), m_size.width(), m_size.height(), animationPhase, protobufSupported);
 
     static Color maskColors[] = { Color::red, Color::green, Color::blue, Color::yellow };
 
@@ -914,6 +927,22 @@ void ThingType::loadTexture(const int animationPhase)
                             auto spriteSize = spriteImage->getSize() / g_gameConfig.getSpriteSize();
 
                             const Point& spritePos = Point(m_size.width() - spriteSize.width(), m_size.height() - spriteSize.height()) * g_gameConfig.getSpriteSize();
+                            {
+                                static std::atomic_int s_diag{ 0 };
+                                const Point d = framePos + spritePos;
+                                if ((d.x < 0 || d.y < 0 ||
+                                     d.x + spriteImage->getWidth() > fullImage->getWidth() ||
+                                     d.y + spriteImage->getHeight() > fullImage->getHeight())
+                                    && s_diag.fetch_add(1) < 10) {
+                                    g_logger.error("[HD] thing {} cat {} | m_size {}x{} | spriteTiles {}x{} | frameIdx {} | indexSize {} | texTiles {}x{} | full {}x{} | framePos {},{} | spritePos {},{} | patterns {}x{}x{} layers {} phases {}",
+                                        m_id, static_cast<int>(m_category), m_size.width(), m_size.height(),
+                                        spriteSize.width(), spriteSize.height(), frameIndex, indexSize,
+                                        textureSize.width(), textureSize.height(),
+                                        fullImage->getWidth(), fullImage->getHeight(),
+                                        framePos.x, framePos.y, spritePos.x, spritePos.y,
+                                        m_numPatternX, m_numPatternY, m_numPatternZ, m_layers, m_animationPhases);
+                                }
+                            }
                             fullImage->blit(framePos + spritePos, spriteImage);
                         } else {
                             for (int h = 0; h < m_size.height(); ++h) {
@@ -941,6 +970,20 @@ void ThingType::loadTexture(const int animationPhase)
                                     }
 
                                     const Point& spritePos = Point(m_size.width() - w - 1, m_size.height() - h - 1) * g_gameConfig.getSpriteSize();
+                                    {
+                                        static std::atomic_int s_diag2{ 0 };
+                                        const Point d = framePos + spritePos;
+                                        if ((d.x < 0 || d.y < 0 ||
+                                             d.x + spriteImage->getWidth() > fullImage->getWidth() ||
+                                             d.y + spriteImage->getHeight() > fullImage->getHeight())
+                                            && s_diag2.fetch_add(1) < 10) {
+                                            g_logger.error("[HD2] rama clasica: thing {} cat {} fromApp {} | m_size {}x{} | sprite {}x{} | frameIdx {} | full {}x{} | dest {},{}",
+                                                m_id, static_cast<int>(m_category), m_fromAppearances,
+                                                m_size.width(), m_size.height(),
+                                                spriteImage->getWidth(), spriteImage->getHeight(),
+                                                frameIndex, fullImage->getWidth(), fullImage->getHeight(), d.x, d.y);
+                                        }
+                                    }
                                     fullImage->blit(framePos + spritePos, spriteImage);
                                 }
                             }
@@ -991,14 +1034,20 @@ Size ThingType::getBestTextureDimension(int w, int h, const int count)
         k <<= 1;
     h = k;
 
-    const int numSprites = w * h * count;
-    assert(numSprites <= g_gameConfig.getSpriteSize() * g_gameConfig.getSpriteSize());
-    assert(w <= g_gameConfig.getSpriteSize());
-    assert(h <= g_gameConfig.getSpriteSize());
+    // Tope del lado de la textura EN TILES. Antes se usaba getSpriteSize(), que
+    // son PIXELES: con sprite-size 32 coincidia por casualidad, pero con 64 el
+    // calculo se descuadra y el fullImage se queda corto, con lo que Image::blit
+    // escribe fuera del buffer y corrompe el heap.
+    static constexpr int MAX_TEXTURE_TILES = 32;
 
-    Size bestDimension = { g_gameConfig.getSpriteSize() };
-    for (int i = w; i <= g_gameConfig.getSpriteSize(); i <<= 1) {
-        for (int j = h; j <= g_gameConfig.getSpriteSize(); j <<= 1) {
+    const int numSprites = w * h * count;
+    assert(numSprites <= MAX_TEXTURE_TILES * MAX_TEXTURE_TILES);
+    assert(w <= MAX_TEXTURE_TILES);
+    assert(h <= MAX_TEXTURE_TILES);
+
+    Size bestDimension = { MAX_TEXTURE_TILES };
+    for (int i = w; i <= MAX_TEXTURE_TILES; i <<= 1) {
+        for (int j = h; j <= MAX_TEXTURE_TILES; j <<= 1) {
             Size candidateDimension = { i, j };
             if (candidateDimension.area() < numSprites)
                 continue;

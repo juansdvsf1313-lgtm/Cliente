@@ -349,6 +349,7 @@ template<typename... Args>
 bool luavalue_cast(const int index, std::function<void(Args...)>& func)
 {
     if (g_lua.isFunction(index)) {
+        const std::string funcSrc = g_lua.functionSource(index); // [TRAZA]
         g_lua.pushValue(index);
         // weak references are used here, this means that the script must hold another reference
         // to this function, otherwise it will expire
@@ -363,8 +364,9 @@ bool luavalue_cast(const int index, std::function<void(Args...)>& func)
                     const int rets = g_lua.safeCall(numArgs);
                     g_lua.pop(rets);
                 } else {
-                    throw LuaException("attempt to call an expired lua function from C++,"
-                                       "did you forget to hold a reference for that function?", 0);
+                    const std::string luaErrMsg = std::string("attempt to call an expired lua function from C++,"
+                                                              "did you forget to hold a reference for that function? origen lua: ") + funcSrc;
+                    throw LuaException(luaErrMsg, 0);
                 }
             } catch (const LuaException& e) {
                 g_logger.error("Lua function callback failed: {}", e.what());
@@ -384,6 +386,7 @@ std::enable_if_t<!std::is_void_v<Ret>, bool>
 luavalue_cast(const int index, std::function<Ret(Args...)>& func)
 {
     if (g_lua.isFunction(index)) {
+        const std::string funcSrc = g_lua.functionSource(index); // [TRAZA]
         g_lua.pushValue(index);
         // weak references are used here, this means that the script must hold another reference
         // to this function, otherwise it will expire
@@ -398,8 +401,9 @@ luavalue_cast(const int index, std::function<Ret(Args...)>& func)
                         throw LuaException("a function from lua didn't retrieve the expected number of results", 0);
                     return g_lua.polymorphicPop<Ret>();
                 }
-                throw LuaException("attempt to call an expired lua function from C++,"
-                                   "did you forget to hold a reference for that function?", 0);
+                const std::string luaErrMsg = std::string("attempt to call an expired lua function from C++,"
+                                                          "did you forget to hold a reference for that function? origen lua: ") + funcSrc;
+                throw LuaException(luaErrMsg, 0);
             } catch (const LuaException& e) {
                 g_logger.error("Lua function callback failed: {}", e.what());
             }

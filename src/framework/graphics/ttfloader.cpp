@@ -240,9 +240,10 @@ BitmapFontPtr TTFLoader::load(const std::string &file, int fontSize,
       int width = 0;
       int height = 0;
       int advance = (int)((slot->advance.x + 32) >> 6);
-      if (strokeWidth > 0) {
-        advance += strokeWidth;
-      }
+      // El contorno NO debe ensanchar el avance: el cliente oficial lo dibuja
+      // dentro del espaciado normal (su Verdana10px.fnt usa spacing=1,0 con
+      // outline=1). Sumarlo hacia el texto 1 px mas ancho por letra y partia
+      // etiquetas como "Convergence" o "Reduce to 50%".
       int bearingX = 0;
       int bearingY = 0;
 

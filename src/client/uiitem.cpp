@@ -119,6 +119,12 @@ void UIItem::setItemId(const int id)
     if (m_item)
         m_item->setShader(m_shaderName);
 
+    // Sin repaint() el pool de dibujo sigue sirviendo el lote cacheado con el
+    // sprite anterior: el hueco enseñaba el item viejo aunque el dato fuera
+    // correcto. Los setters cosmeticos (setShowDuration, setFlipDirection...)
+    // ya lo hacian; a los que cambian el item se les habia olvidado.
+    repaint();
+
     callLuaField("onItemChange");
 }
 
@@ -126,6 +132,7 @@ void UIItem::setItemCount(const int count)
 {
     if (m_item) m_item->setCount(count);
 
+    repaint();
     callLuaField("onItemChange");
 }
 
@@ -133,6 +140,7 @@ void UIItem::setItemSubType(const int subType)
 {
     if (m_item) m_item->setSubType(subType);
 
+    repaint();
     callLuaField("onItemChange");
 }
 
@@ -143,6 +151,7 @@ void UIItem::setItem(const ItemPtr& item)
     if (item)
         m_itemId = item->getClientId();
 
+    repaint();
     callLuaField("onItemChange");
 }
 
@@ -176,6 +185,7 @@ int UIItem::getItemCountOrSubType() { return m_item ? m_item->getCountOrSubType(
 void UIItem::setShader(std::string_view name) {
     m_shaderName = name;
     if (getItem()) getItem()->setShader(name);
+    repaint();
 }
 
 bool UIItem::hasShader() { return getItem() ? getItem()->getShader() != nullptr : false; }

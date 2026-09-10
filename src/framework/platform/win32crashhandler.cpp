@@ -196,9 +196,46 @@ LONG CALLBACK ExceptionHandler(const LPEXCEPTION_POINTERS e)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// [DIAGNOSTICO] El verificador de heap (PageHeap) mata el proceso con
+// STATUS_ASSERTION_FAILURE sin pasar por SetUnhandledExceptionFilter, asi que no
+// llegabamos a escribir nada. Un manejador vectorizado si ve la excepcion en
+// primera instancia, y con la pila en ese momento tenemos al culpable.
+static LONG CALLBACK VigilanteDeExcepciones(LPEXCEPTION_POINTERS e)
+{
+    const DWORD codigo = e->ExceptionRecord->ExceptionCode;
+    if (codigo != 0xC0000005 &&  // acceso invalido
+        codigo != 0xC0000421 &&  // assert del verificador
+        codigo != 0xC0000374 &&  // heap corrompido
+        codigo != 0x80000003)    // breakpoint del verificador
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    static bool yaEscrito = false;
+    if (yaEscrito)
+        return EXCEPTION_CONTINUE_SEARCH;
+    yaEscrito = true;
+
+    std::stringstream oss;
+    oss << "=== excepcion 0x" << std::hex << codigo << std::dec
+        << " en 0x" << std::hex
+        << reinterpret_cast<std::uintptr_t>(e->ExceptionRecord->ExceptionAddress)
+        << std::dec << " ===" << std::endl;
+    Stacktrace(e, oss);
+    oss << std::endl;
+
+    if (std::ofstream fout("crash_pila.log", std::ios::out | std::ios::app); fout.is_open()) {
+        fout << oss.str();
+        fout.flush();
+        fout.close();
+    }
+    g_logger.error(oss.str());
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
 void installCrashHandler()
 {
     SetUnhandledExceptionFilter(ExceptionHandler);
+    AddVectoredExceptionHandler(1, VigilanteDeExcepciones);
 }
 
 #endif

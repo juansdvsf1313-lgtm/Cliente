@@ -34,12 +34,12 @@ public:
     void setItemId(int id);
     void setItemCount(int count);
     void setItemSubType(int subType);
-    void setItemVisible(const bool visible) { m_itemVisible = visible; }
+    void setItemVisible(const bool visible) { m_itemVisible = visible; repaint(); }
     void setItem(const ItemPtr& item);
-    void setShowCount(const bool value) { m_alwaysShowCount = value; }
+    void setShowCount(const bool value) { m_alwaysShowCount = value; repaint(); }
     void setShowDuration(const bool value) { m_showDuration = value; repaint(); }
     void setShowCharges(const bool value) { m_showCharges = value; repaint(); }
-    void setDisplayCount(int count) { m_displayCount = count; }
+    void setDisplayCount(int count) { m_displayCount = count; repaint(); }
     void setVirtual(const bool virt) { m_virtual = virt; }
     void setFlipDirection(const uint8_t direction) { m_flipDirection = direction; repaint(); }
     void clearItem() { setItemId(0); }

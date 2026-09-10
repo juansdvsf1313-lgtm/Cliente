@@ -371,6 +371,9 @@ public:
 
     std::string getSource(int level = 2);
 
+    /// [TRAZA] Devuelve 'fichero:linea' de la funcion lua que esta en el indice dado
+    std::string functionSource(int index = -1);
+
     void loadFiles(const std::string& directory, bool recursive = false, const std::string& contains = "");
 
     /// Pushes any type onto the stack

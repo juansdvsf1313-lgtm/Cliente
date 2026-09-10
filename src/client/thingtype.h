@@ -228,6 +228,12 @@ private:
     int8_t m_opaque{ -1 };
 
     Size m_size;
+
+    // true si este ThingType se parseo de appearances (protobuf). Hace falta
+    // porque g_game.isUsingProtobuf() mira la version de protocolo de la partida,
+    // que al arrancar vale 0: sin esto se compone la textura por el camino
+    // clasico, que asume un sprite por tile y desborda con sprites grandes.
+    bool m_fromAppearances{ false };
     Point m_displacement;
 
     Animator* m_animator{ nullptr };

@@ -22,6 +22,12 @@
 
 #include "image.h"
 
+#include <atomic>
+#include <string>
+
+// Rastro para diagnosticar quien hace un blit fuera de rango.
+thread_local std::string g_blitContext;
+
 #include "apngloader.h"
 #include "framework/core/filestream.h"
 #include "framework/core/resourcemanager.h"
@@ -157,10 +163,31 @@ void Image::blit(const Point& dest, const ImagePtr& other)
         return;
 
     const uint8_t* otherPixels = other->getPixelData();
+
+    // Recorte a los limites del destino. Sin esto, un blit que se salga escribe
+    // fuera del vector y corrompe el heap; con sprites mayores de 64 px pasa
+    // porque getBestTextureDimension() usa getSpriteSize() (pixeles) como tope
+    // del numero de tiles, y el fullImage se queda corto.
+    static std::atomic_int s_clipReported{ 0 };
+    if (dest.x < 0 || dest.y < 0 ||
+        dest.x + other->getWidth() > m_size.width() ||
+        dest.y + other->getHeight() > m_size.height()) {
+        if (s_clipReported.fetch_add(1) < 20) {
+            g_logger.error("[blit] FUERA DE RANGO: destino {}x{} en ({},{}) sobre imagen {}x{} | ctx: {}",
+                other->getWidth(), other->getHeight(), dest.x, dest.y,
+                m_size.width(), m_size.height(),
+                g_blitContext.empty() ? std::string("(sin contexto)") : g_blitContext);
+        }
+    }
+
     for (int p = 0; p < other->getPixelCount(); ++p) {
         const int x = p % other->getWidth();
         const int y = p / other->getWidth();
-        const int pos = ((dest.y + y) * m_size.width() + (dest.x + x)) * 4;
+        const int dx = dest.x + x;
+        const int dy = dest.y + y;
+        if (dx < 0 || dy < 0 || dx >= m_size.width() || dy >= m_size.height())
+            continue;
+        const int pos = (dy * m_size.width() + dx) * 4;
 
         if (otherPixels[p * 4 + 3] != 0) {
             m_pixels[pos + 0] = otherPixels[p * 4 + 0];

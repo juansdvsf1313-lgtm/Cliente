@@ -35,6 +35,11 @@ public:
     void terminate();
 
     uint8_t getSpriteSize() { return m_spriteSize; }
+
+    // Necesario para el modo HD: los assets de doble resolucion exigen 64. Se
+    // llama desde things.lua justo antes de cargar appearances, porque
+    // ThingType calcula su tamano en tiles dividiendo entre este valor.
+    void setSpriteSize(const uint8_t size) { if (size > 0) m_spriteSize = size; }
     uint16_t getLastSupportedVersion() const { return m_lastSupportedVersion; }
     void setLastSupportedVersion(uint16_t version) { m_lastSupportedVersion = version; }
     bool drawTyping() const { return m_drawTyping; }

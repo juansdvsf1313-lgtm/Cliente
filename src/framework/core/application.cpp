@@ -29,6 +29,9 @@
 #define ADD_QUOTES(s) ADD_QUOTES_HELPER(s)
 
 #include <csignal>
+#include <exception>
+#include <fstream>
+#include "logger.h"
 
 #include "clock.h"
 #include "configmanager.h"
@@ -73,6 +76,26 @@ void Application::init(std::vector<std::string>& args, ApplicationContext* conte
 #ifdef CRASH_HANDLER
     installCrashHandler();
 #endif
+
+    // [TRAZA] una excepcion de C++ que se escapa mata el proceso sin pasar por el
+    // crash handler de Windows y sin dejar nada en el log; aqui la dejamos por escrito.
+    std::set_terminate([] {
+        std::string msg = "TERMINATE: excepcion no capturada (sin excepcion activa)";
+        if (std::current_exception()) {
+            try {
+                std::rethrow_exception(std::current_exception());
+            } catch (const std::exception& ex) {
+                msg = std::string("TERMINATE: excepcion no capturada: ") + ex.what();
+            } catch (...) {
+                msg = "TERMINATE: excepcion no capturada de tipo desconocido";
+            }
+        }
+        if (std::ofstream f("crash_traza.log", std::ios::app); f.is_open()) {
+            f << msg << std::endl;
+        }
+        g_logger.error(msg);
+        std::abort();
+    });
 
     // setup locale
     std::locale::global(std::locale());

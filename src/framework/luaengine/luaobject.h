@@ -221,17 +221,21 @@ void LuaObject::callLuaField(const std::string_view field, const T&... args)
 {
     const std::string fieldStr = field.data();
 
-    // Avoids unnecessary overhead by checking if the field is registered before invoking the Lua event.
-    auto it = m_events.find(fieldStr);
-    if (it != m_events.end() && !it->second)
-        return;
+    // Se cachea solo el resultado POSITIVO (el campo existe). Cachear el negativo
+    // dejaba el evento muerto para toda la vida del objeto si la primera llamada
+    // ocurria antes de que Lua conectara su handler: p.ej. LocalPlayer recibe
+    // onInventoryChange durante el login antes de que el Controller del
+    // inventario haga connect() (lo hace en un addEvent diferido), y desde ese
+    // momento el equipo dejaba de refrescarse hasta relogear.
+    const auto it = m_events.find(fieldStr);
+    const bool cachedAsPresent = it != m_events.end() && it->second;
 
     const int rets = luaCallLuaField(field, args...);
     if (rets > 0)
         g_lua.pop(rets);
 
-    if (it == m_events.end())
-        m_events[fieldStr] = rets > -1;
+    if (!cachedAsPresent && rets > -1)
+        m_events[fieldStr] = true;
 }
 
 template<typename... T>

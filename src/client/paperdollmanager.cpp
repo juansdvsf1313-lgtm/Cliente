@@ -34,7 +34,10 @@ PaperdollPtr PaperdollManager::getById(uint16_t id) {
     }
 
     const auto& obj = (*it).second;
-    if (obj->m_thingId > 0 && obj->m_thingType == nullptr) {
+    // Se resuelve en cada consulta, no solo la primera. loadAppearances() recrea
+    // todos los ThingType (cambio HD/SD en caliente), asi que un puntero crudo
+    // cacheado quedaria colgando. Es un indice de vector: no cuesta nada.
+    if (obj->m_thingId > 0) {
         if (!g_things.isValidDatId(obj->m_thingId, ThingCategoryCreature)) {
             g_logger.error(std::format("PaperdollManager::getById(%d): invalid thing with id %d.", id, obj->m_thingId));
             return nullptr;
