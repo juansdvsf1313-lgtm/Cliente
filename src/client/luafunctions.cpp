@@ -440,6 +440,8 @@ void Client::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_game", "sendWeaponProficiencyApply", &Game::sendWeaponProficiencyApply, &g_game);
     g_lua.bindSingletonFunction("g_game", "sendStartOfflineTraining", &Game::sendStartOfflineTraining, &g_game);
     g_lua.bindSingletonFunction("g_game", "sendTutorialChangeVocation", &Game::sendTutorialChangeVocation, &g_game);
+    g_lua.bindSingletonFunction("g_game", "setShowAttackAnimation", &Game::setShowAttackAnimation, &g_game);
+    g_lua.bindSingletonFunction("g_game", "isShowingAttackAnimation", &Game::isShowingAttackAnimation, &g_game);
 
     g_lua.registerSingletonClass("g_gameConfig");
     g_lua.bindSingletonFunction("g_gameConfig", "loadFonts", &GameConfig::loadFonts, &g_gameConfig);
@@ -721,6 +723,7 @@ void Client::registerLuaFunctions()
     g_lua.registerClass<ThingType>();
     g_lua.bindClassStaticFunction<ThingType>("create", [] { return std::make_shared<ThingType>(); });
     g_lua.bindClassMemberFunction<ThingType>("getId", &ThingType::getId);
+    g_lua.bindClassMemberFunction<ThingType>("preload", &ThingType::preload);
     g_lua.bindClassMemberFunction<ThingType>("getClothSlot", &ThingType::getClothSlot);
     g_lua.bindClassMemberFunction<ThingType>("getCategory", &ThingType::getCategory);
     g_lua.bindClassMemberFunction<ThingType>("getSize", &ThingType::getSize);

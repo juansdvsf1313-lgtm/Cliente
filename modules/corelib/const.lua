@@ -330,6 +330,23 @@ NetworkMessageTypes          = {
     Table = 8
 }
 
+-- Efectos de interfaz, sacados del banco de sonidos oficial.
+--
+-- De los 592 efectos del sounds.dat de Tibia, solo estos 8 estan clasificados
+-- como NUMERIC_SOUND_TYPE_UI (12). Cualquiera de ellos se puede intercambiar aqui
+-- por otro de la lista; el cliente los lee al arrancar, sin recompilar.
+--
+--   2774 ACTION_CLICK_ON      2781 ACTION_CRATE_BREAK_MAGIC_DUST
+--   2775 ACTION_CLICK_OFF     2785 ACTION_SELECT_OBJECT
+--   2780 ACTION_MOVING_WOOD   2854 / 2855 / 2896 (sin nombre en el enum)
+UISoundEffects               = {
+    WindowOpen = 2774,
+    WindowClose = 2775,
+    ContainerOpen = 2780,
+    ContainerClose = 2775,
+    Select = 2785
+}
+
 SoundChannels                = {
     Music = 1,
     Ambient = 2,   -- ambience stream (tipo 8 del soundbank)

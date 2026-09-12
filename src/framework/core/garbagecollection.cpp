@@ -23,6 +23,7 @@
 #include "garbagecollection.h"
 
 #include "client/const.h"
+#include "client/gameconfig.h"
 #include "client/thingtype.h"
 #include "client/thingtypemanager.h"
 #include "framework/graphics/declarations.h"
@@ -66,9 +67,16 @@ void GarbageCollection::texture() {
 }
 
 void GarbageCollection::thingType() {
-    static constexpr uint16_t
-        IDLE_TIME = 60 * 1000, // Maximum time it can be idle, default 60 seconds.
-        AMOUNT_PER_CHECK = 500; // maximum number of objects to be checked.
+    static constexpr uint16_t AMOUNT_PER_CHECK = 500; // maximum number of objects to be checked.
+
+    // Cuanto se conserva la textura de un objeto sin usarse antes de descargarla.
+    //
+    // Los 60 segundos de siempre estan pensados para sprites de 32 px. Con 64 la
+    // reconstruccion cuesta cuatro veces mas -el atlas de un outfit son 8 MB en vez
+    // de 2-, asi que reciclar tan pronto obliga a rehacer los mismos atlas cada vez
+    // que alguien vuelve a entrar en pantalla. El recolector de texturas sueltas
+    // (25 min) sigue actuando de red de seguridad.
+    const uint32_t IDLE_TIME = g_gameConfig.getSpriteSize() > 32 ? 3 * 60 * 1000 : 60 * 1000;
 
     static uint8_t category{ ThingLastCategory };
     static size_t index = 0;

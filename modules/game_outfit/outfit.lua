@@ -928,6 +928,18 @@ function showOutfits()
     window.selectionList:show()
     window.selectionScroll:show()
     window.listSearch:show()
+
+    -- Se encargan TODAS las vistas previas al abrir la pestana, no solo las que
+    -- se ven. Una vista previa solo pide su textura al dibujarse, asi que sin
+    -- esto los outfits van apareciendo segun bajas y la lista tarda en estar
+    -- completa. preload() las construye en los hilos de fondo, en paralelo, y la
+    -- ventana sigue respondiendo mientras tanto.
+    for _, outfitData in ipairs(ServerData.outfits) do
+        local thingType = g_things.getThingType(outfitData[1], ThingCategoryCreature)
+        if thingType then
+            thingType:preload()
+        end
+    end
 end
 
 function showMounts()

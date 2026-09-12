@@ -89,6 +89,8 @@ bool DrawPoolManager::shaderNeedFramebuffer() const { return getCurrentPool()->g
 
 void DrawPoolManager::draw()
 {
+    DrawPool::resetUploadBudget();
+
     if (m_size != g_graphics.getViewportSize()) {
         m_size = g_graphics.getViewportSize();
         m_transformMatrix = g_painter->getTransformMatrix(m_size);
@@ -105,8 +107,8 @@ void DrawPoolManager::drawObject(DrawPool* pool, const DrawPool::DrawObject& obj
     if (obj.action) {
         obj.action();
     } else if (obj.coords) {
-        obj.state.execute(pool);
-        g_painter->drawCoords(*obj.coords, DrawMode::TRIANGLES);
+        if (obj.state.execute(pool))
+            g_painter->drawCoords(*obj.coords, DrawMode::TRIANGLES);
     }
 }
 

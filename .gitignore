@@ -347,3 +347,9 @@ _copia_fuentes_antes/
 otclient.log*
 traza_*.txt
 _build*.log
+
+# Temporales de trabajo
+__pycache__/
+_backup_sonidos/
+medicion_caminado.txt
+geom_*.txt

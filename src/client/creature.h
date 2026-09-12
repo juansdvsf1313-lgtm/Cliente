@@ -133,6 +133,25 @@ public:
 
     Point getDisplacement() const override;
     Point getWalkOffset() { return m_walkOffset; }
+
+    // El mismo desplazamiento del paso, pero ya en pixeles del FRAMEBUFFER y sin
+    // pasar por el redondeo a pixeles de sprite.
+    //
+    // El framebuffer del mapa tiene scaleFactor pixeles por cada pixel de sprite
+    // (mapview.cpp: tileSize = spriteSize * scaleFactor). Calcular el avance en
+    // enteros de sprite y multiplicarlo despues por la escala tiraba 2 de cada 3
+    // posiciones posibles con zoom x3: el mundo avanzaba a saltos de 3 pixeles de
+    // pantalla, y por eso subir los FPS no suavizaba nada.
+    // Se calcula AQUI, en el instante de dibujar, en vez de leer un valor ya
+    // guardado. Las criaturas que no lleva la camara solo recalculan su avance
+    // cada walkDuration (como mucho 16 ms), asi que en un monitor rapido su
+    // posicion se quedaria congelada varios fotogramas. Leyendo el reloj al
+    // dibujar, sale exacta con cualquier refresco y sin programar mas eventos.
+    Point getWalkOffsetScaled(const float scale) const {
+        const auto& off = currentWalkOffset();
+        return { static_cast<int>(std::lround(off.x * scale)),
+                 static_cast<int>(std::lround(off.y * scale)) };
+    }
     PointF getJumpOffset() { return m_jumpOffset; }
     Position getLastStepFromPosition() const { return m_lastStepFromPosition; }
     Position getLastStepToPosition() const { return m_lastStepToPosition; }
@@ -220,6 +239,8 @@ protected:
     virtual void terminateWalk();
     virtual void onWalking() {};
     void updateWalkOffset(uint8_t totalPixelsWalked);
+    PointF currentWalkOffset() const;
+    static PointF walkOffsetFor(Otc::Direction dir, float walked, float size);
     void updateWalk();
 
     void setOldPositionSilently(const Position& pos) { m_oldPosition = pos; }
@@ -237,6 +258,7 @@ protected:
     bool m_walking{ false };
 
     Point m_walkOffset;
+    PointF m_walkOffsetF;   // igual que m_walkOffset pero sin cuantizar, solo para dibujar
     Otc::Direction m_direction{ Otc::South };
 
     Timer m_walkTimer;
@@ -344,6 +366,9 @@ private:
     // walk related
     uint8_t m_walkAnimationPhase{ 0 };
     uint8_t m_walkedPixels{ 0 };
+    float m_walkedPixelsF{ 0.f };
+    float m_walkStepDuration{ 0.f };   // ms del paso en curso, para interpolar al dibujar
+    float m_walkAnimDistance{ 0.f };   // pixeles andados en toda la caminata, para el ciclo de piernas
 
     uint8_t m_exactSize{ 0 };
 

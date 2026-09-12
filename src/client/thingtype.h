@@ -197,6 +197,13 @@ public:
     int getExactHeight();
     const TexturePtr& getTexture(int animationPhase);
 
+    // Empieza a construir la textura en segundo plano sin esperarla.
+    //
+    // Una vista previa solo pide su textura cuando se dibuja, asi que en una lista
+    // larga los outfits van apareciendo segun bajas. Con esto la ventana puede
+    // encargarlas todas al abrirse y que esten listas antes de llegar a ellas.
+    void preload();
+
     std::string getName() { return m_name; }
     std::string getDescription() { return m_description; }
 

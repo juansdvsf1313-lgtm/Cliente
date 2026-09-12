@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <framework/graphics/declarations.h>
 #include <framework/luaengine/luaobject.h>
 
@@ -126,6 +127,14 @@ public:
     SpriteSheetPtr getSheetBySpriteId(int id, bool& isLoading, bool load = true);
 
     void addSpriteSheet(const SpriteSheetPtr& sheet) { m_sheets.emplace_back(sheet); }
+
+    // Deja las hojas ordenadas por su primer id para poder buscarlas por
+    // biseccion en getSheetBySpriteId, que se llama una vez por cada sprite.
+    void sortSheets() {
+        std::ranges::sort(m_sheets, [](const SpriteSheetPtr& a, const SpriteSheetPtr& b) {
+            return a->firstId < b->firstId;
+        });
+    }
 
     ImagePtr getSpriteImage(int id) {
         bool isLoading = false;

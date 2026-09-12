@@ -930,6 +930,8 @@ function onContainerOpen(container, previousContainer)
         previousContainer.itemsPanel = nil
     else
         containerWindow = g_ui.createWidget('ContainerWindow')
+        -- Solo al abrir uno nuevo: navegar entre paginas reutiliza la ventana.
+        playUISound(UISoundEffects.ContainerOpen)
     end
     containerWindow:setId('container' .. container:getId())
     local containerPanel = containerWindow:getChildById('contentsPanel')
@@ -1138,6 +1140,7 @@ function onContainerOpen(container, previousContainer)
 end
 
 function onContainerClose(container)
+    playUISound(UISoundEffects.ContainerClose)
     destroy(container)
 end
 

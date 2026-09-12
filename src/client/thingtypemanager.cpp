@@ -197,6 +197,7 @@ bool ThingTypeManager::loadAppearances(const std::string& file)
                     spritesCount = std::max<int>(spritesCount, lastSpriteId);
                 }
             }
+            g_spriteAppearances.sortSheets();
             g_spriteAppearances.setSpritesCount(spritesCount + 1);
             g_spriteAppearances.setPath(file);
             // load appearances.dat

@@ -23,10 +23,6 @@
 #include "thingtype.h"
 
 #include <atomic>
-#include <string>
-
-extern thread_local std::string g_blitContext;
-
 #include "animator.h"
 #include "game.h"
 #include "gameconfig.h"
@@ -34,6 +30,7 @@ extern thread_local std::string g_blitContext;
 #include "spriteappearances.h"
 #include "spritemanager.h"
 #include "framework/core/asyncdispatcher.h"
+#include "framework/core/clock.h"
 #include "framework/core/filestream.h"
 #include "framework/graphics/drawpoolmanager.h"
 #include "framework/graphics/image.h"
@@ -790,13 +787,32 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
     // this line fixes a bug that makes them disappear while moving
     int animationFrameId = animationPhase % m_animationPhases;
 
-    const auto& texture = getTexture(animationFrameId);
+    auto texture = getTexture(animationFrameId);
+
+    // Respaldo: si la fase pedida aun se esta construyendo, se dibuja la fase 0.
+    //
+    // Cada fase de animacion es una textura completa, y en HD un outfit con addons
+    // y montura ocupa 8 MB por fase (1024x2048) con 9 fases: 72 MB que tardan en
+    // construirse en segundo plano. Sin respaldo, la criatura simplemente no se
+    // dibujaba durante esos fotogramas. Parado se usa siempre la fase 0, ya lista,
+    // y por eso el hueco solo aparecia al caminar. En SD son 2 MB por fase y se
+    // terminan antes de que de tiempo a verlo.
+    //
+    // Repetir un fotograma de animacion un instante se nota mucho menos que un
+    // hueco, y en cuanto la fase termina de construirse se usa la buena.
+    if (!texture && animationFrameId != 0)
+        texture = getTexture(0);
+
     if (!texture) {
         // Reset any pending onlyOnce state to prevent stale opacity/shader
         // from affecting subsequent draws when texture is still loading
         g_drawPool.resetOnlyOnceParameters();
         return; // texture might not exists, neither its rects.
     }
+
+    // Los rectangulos tienen que salir de la MISMA fase que la textura usada.
+    if (!m_textureData[animationFrameId].source)
+        animationFrameId = 0;
 
     const auto& textureData = m_textureData[animationFrameId];
 
@@ -843,7 +859,17 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
     bool expected = false;
     if (m_loading.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
         bool async = g_app.isLoadingAsyncTexture();
-        if (g_game.isUsingProtobuf() && g_drawPool.getCurrentType() == DrawPoolType::FOREGROUND)
+        // La interfaz construye sus texturas al momento para que no parpadeen... pero
+        // un atlas de criatura son 8 MB en HD (120 poses) compuestos en el HILO
+        // PRINCIPAL, y la ventana de outfits pide 130 de golpe: medido, un segundo
+        // entero de tirones en la primera apertura.
+        //
+        // Los outfits pasan a construirse en segundo plano: la vista previa aparece
+        // en blanco un instante y luego se rellena, que es como se comporta el
+        // cliente oficial. Los items de la interfaz son pequenos y baratos, asi que
+        // esos se siguen construyendo al momento.
+        if (g_game.isUsingProtobuf() && g_drawPool.getCurrentType() == DrawPoolType::FOREGROUND
+            && m_category != ThingCategoryCreature)
             async = false;
 
         if (!async) {
@@ -862,6 +888,26 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
     }
 
     return m_textureNull;
+}
+
+void ThingType::preload()
+{
+    if (m_null || m_animationPhases == 0)
+        return;
+
+    // Solo la fase 0: es la que muestra una vista previa quieta. Cargar las nueve
+    // fases de cada outfit serian 72 MB por outfit en HD.
+    if (!m_textureData.empty() && m_textureData[0].source)
+        return;
+
+    bool expected = false;
+    if (!m_loading.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+        return;
+
+    g_asyncDispatcher->detach_task([this] {
+        loadTexture(0);
+        m_loading.store(false, std::memory_order_release);
+    });
 }
 
 void ThingType::loadTexture(const int animationPhase)
@@ -885,7 +931,6 @@ void ThingType::loadTexture(const int animationPhase)
     const auto& fullImage = useCustomImage ? Image::load(m_customImage) : std::make_shared<Image>(textureSize * g_gameConfig.getSpriteSize());
     // Decide por el ORIGEN de los datos, no por el estado de la conexion.
     const bool protobufSupported = m_fromAppearances || g_game.isUsingProtobuf();
-    g_blitContext = fmt::format("loadTexture thing={} cat={} m_size={}x{} fase={} protobuf={}", m_id, static_cast<int>(m_category), m_size.width(), m_size.height(), animationPhase, protobufSupported);
 
     static Color maskColors[] = { Color::red, Color::green, Color::blue, Color::yellow };
 
@@ -927,22 +972,6 @@ void ThingType::loadTexture(const int animationPhase)
                             auto spriteSize = spriteImage->getSize() / g_gameConfig.getSpriteSize();
 
                             const Point& spritePos = Point(m_size.width() - spriteSize.width(), m_size.height() - spriteSize.height()) * g_gameConfig.getSpriteSize();
-                            {
-                                static std::atomic_int s_diag{ 0 };
-                                const Point d = framePos + spritePos;
-                                if ((d.x < 0 || d.y < 0 ||
-                                     d.x + spriteImage->getWidth() > fullImage->getWidth() ||
-                                     d.y + spriteImage->getHeight() > fullImage->getHeight())
-                                    && s_diag.fetch_add(1) < 10) {
-                                    g_logger.error("[HD] thing {} cat {} | m_size {}x{} | spriteTiles {}x{} | frameIdx {} | indexSize {} | texTiles {}x{} | full {}x{} | framePos {},{} | spritePos {},{} | patterns {}x{}x{} layers {} phases {}",
-                                        m_id, static_cast<int>(m_category), m_size.width(), m_size.height(),
-                                        spriteSize.width(), spriteSize.height(), frameIndex, indexSize,
-                                        textureSize.width(), textureSize.height(),
-                                        fullImage->getWidth(), fullImage->getHeight(),
-                                        framePos.x, framePos.y, spritePos.x, spritePos.y,
-                                        m_numPatternX, m_numPatternY, m_numPatternZ, m_layers, m_animationPhases);
-                                }
-                            }
                             fullImage->blit(framePos + spritePos, spriteImage);
                         } else {
                             for (int h = 0; h < m_size.height(); ++h) {
@@ -970,20 +999,6 @@ void ThingType::loadTexture(const int animationPhase)
                                     }
 
                                     const Point& spritePos = Point(m_size.width() - w - 1, m_size.height() - h - 1) * g_gameConfig.getSpriteSize();
-                                    {
-                                        static std::atomic_int s_diag2{ 0 };
-                                        const Point d = framePos + spritePos;
-                                        if ((d.x < 0 || d.y < 0 ||
-                                             d.x + spriteImage->getWidth() > fullImage->getWidth() ||
-                                             d.y + spriteImage->getHeight() > fullImage->getHeight())
-                                            && s_diag2.fetch_add(1) < 10) {
-                                            g_logger.error("[HD2] rama clasica: thing {} cat {} fromApp {} | m_size {}x{} | sprite {}x{} | frameIdx {} | full {}x{} | dest {},{}",
-                                                m_id, static_cast<int>(m_category), m_fromAppearances,
-                                                m_size.width(), m_size.height(),
-                                                spriteImage->getWidth(), spriteImage->getHeight(),
-                                                frameIndex, fullImage->getWidth(), fullImage->getHeight(), d.x, d.y);
-                                        }
-                                    }
                                     fullImage->blit(framePos + spritePos, spriteImage);
                                 }
                             }
@@ -1018,7 +1033,18 @@ void ThingType::loadTexture(const int animationPhase)
     if (m_opaque == -1)
         m_opaque = !fullImage->hasTransparentPixel();
 
-    textureData.source = std::make_shared<Texture>(fullImage, true, false);
+    // Sin mipmaps: el segundo parametro es buildMipmaps.
+    //
+    // Se generaban en la CPU, nivel a nivel, con un recorrido por pixel en cada
+    // uno (texture.cpp: bucle sobre Image::nextMipmap). Para un atlas de outfit de
+    // 8 MB en HD eso es una pasada completa mas ~2,7 MB de niveles extra y una
+    // docena de subidas de mas, y todo ocurre en el HILO PRINCIPAL, porque la
+    // ventana de outfits compone sus texturas de forma sincrona.
+    //
+    // Y no se usan: los sprites se dibujan AMPLIADOS (64 px a ~96), asi que la GPU
+    // siempre muestrea el nivel 0. Solo se notarian en una vista previa muy
+    // reducida, y ahi GL_LINEAR basta.
+    textureData.source = std::make_shared<Texture>(fullImage, false, false);
     textureData.source->allowAtlasCache();
 }
 

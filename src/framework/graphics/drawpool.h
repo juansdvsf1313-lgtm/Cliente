@@ -102,6 +102,10 @@ public:
 
     void agroup(const bool agroup) { m_alwaysGroupDrawings = agroup; }
 
+    // Presupuesto de subidas de textura a la GPU por fotograma. Ver execute().
+    static void resetUploadBudget();
+    static bool consumeUploadBudget();
+
     void setScaleFactor(const float scale) { m_scaleFactor = scale; }
     float getScaleFactor() const { return m_scaleFactor; }
     bool isScaled() const { return m_scaleFactor != DEFAULT_DISPLAY_DENSITY; }
@@ -163,7 +167,9 @@ protected:
         size_t hash{ 0 };
 
         bool operator==(const PoolState& s2) const { return hash == s2.hash; }
-        void execute(DrawPool* pool) const;
+        // Devuelve false si la textura aun no se ha podido subir a la GPU en
+        // este fotograma; entonces no hay que dibujar el objeto todavia.
+        bool execute(DrawPool* pool) const;
     };
 
     struct DrawObject

@@ -81,16 +81,18 @@ void Creature::draw(const Point& dest, const bool drawThings, LightView* /*light
     if (!canBeSeen() || !canDraw() || (isDead() && !isHidden()))
         return;
 
+    const auto walkPx = getWalkOffsetScaled(g_drawPool.getScaleFactor());
+
     if (drawThings) {
         if (m_showTimedSquare) {
-            g_drawPool.addBoundingRect(Rect(dest + (m_walkOffset - getDisplacement() + 2) * g_drawPool.getScaleFactor(), Size(28 * g_drawPool.getScaleFactor())), m_timedSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
+            g_drawPool.addBoundingRect(Rect(dest + walkPx + (Point(2) - getDisplacement()) * g_drawPool.getScaleFactor(), Size(28 * g_drawPool.getScaleFactor())), m_timedSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
         }
 
         if (m_showStaticSquare) {
-            g_drawPool.addBoundingRect(Rect(dest + (m_walkOffset - getDisplacement()) * g_drawPool.getScaleFactor(), Size(g_gameConfig.getSpriteSize() * g_drawPool.getScaleFactor())), m_staticSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
+            g_drawPool.addBoundingRect(Rect(dest + walkPx - getDisplacement() * g_drawPool.getScaleFactor(), Size(g_gameConfig.getSpriteSize() * g_drawPool.getScaleFactor())), m_staticSquareColor, std::max<int>(static_cast<int>(3 * g_drawPool.getScaleFactor()), 1));
         }
 
-        auto _dest = dest + m_walkOffset * g_drawPool.getScaleFactor();
+        auto _dest = dest + walkPx;
 
         auto oldScaleFactor = g_drawPool.getScaleFactor();
 
@@ -116,6 +118,8 @@ void Creature::draw(const Point& dest, const bool drawThings, LightView* /*light
 void Creature::drawLight(const Point& dest, LightView* lightView) {
     if (!lightView) return;
 
+    const auto walkPx = getWalkOffsetScaled(g_drawPool.getScaleFactor());
+
     auto light = getLight();
 
     if (isLocalPlayer() && (g_map.getLight().intensity < 64 || m_position.z > g_gameConfig.getMapSeaFloor())) {
@@ -127,10 +131,10 @@ void Creature::drawLight(const Point& dest, LightView* lightView) {
     }
 
     if (light.intensity > 0) {
-        lightView->addLightSource(dest + (m_walkOffset + (Point(g_gameConfig.getSpriteSize() / 2))) * g_drawPool.getScaleFactor(), light);
+        lightView->addLightSource(dest + walkPx + Point(g_gameConfig.getSpriteSize() / 2) * g_drawPool.getScaleFactor(), light);
     }
 
-    drawAttachedLightEffect(dest + m_walkOffset * g_drawPool.getScaleFactor(), lightView);
+    drawAttachedLightEffect(dest + walkPx, lightView);
 
     for (const auto& paperdoll : m_paperdolls)
         paperdoll->drawLight(dest, m_outfit.hasMount(), lightView);
@@ -523,6 +527,8 @@ void Creature::walk(const Position& oldPos, const Position& newPos)
     m_walking = true;
     m_walkTimer.restart();
     m_walkedPixels = 0;
+    m_walkedPixelsF = 0.f;
+    m_walkStepDuration = 0.f;
 
     // no direction need to be changed when the walk ends
     m_walkTurnDirection = Otc::InvalidDirection;
@@ -695,6 +701,44 @@ void Creature::updateWalkAnimation()
         return;
     }
 
+    // La fase sale del AVANCE del paso, no de un temporizador propio.
+    //
+    // El calculo anterior era clamp(walkSpeed / (fases/1.5), 30, 80). Con un paso
+    // de ~500 ms daba 100, recortado a 80 por el tope: ocho fases a 80 ms son
+    // 640 ms de ciclo para un paso de 500. Y en diagonal, que dura el triple, el
+    // tope volvia a dar 80 ms, o sea dos ciclos y medio de piernas para cruzar una
+    // sola baldosa. Las piernas iban por libre.
+    //
+    // Atado al avance, completan exactamente un ciclo por baldosa a cualquier
+    // velocidad, recta o diagonal.
+    if (m_walkingAnimationSpeed == 0) {
+        const float size = g_gameConfig.getSpriteSize();
+        if (size <= 0.f)
+            return;
+
+        // Un ciclo de piernas por baldosa, continuo entre pasos... pero con un
+        // limite de cuantas veces por segundo puede cambiar la fase.
+        //
+        // Sin el limite, a velocidad alta las piernas parpadean: medido en juego,
+        // un paso dura 66 ms, y meter ocho fases ahi son 120 cambios por segundo.
+        // Con el limite, a velocidad normal manda el paso y a velocidad alta las
+        // piernas van mas despacio que el personaje, como en cualquier juego.
+        static constexpr int MIN_PHASE_MS = 55;
+
+        const float ciclos = m_walkAnimDistance / size;
+        const auto objetivo = static_cast<uint8_t>(1 + static_cast<int>(ciclos * footAnimPhases) % footAnimPhases);
+
+        if (objetivo != m_walkAnimationPhase && m_footTimer.ticksElapsed() >= MIN_PHASE_MS) {
+            // Se avanza de una en una para no saltarse fases cuando el tope frena:
+            // el ciclo tiene que verse entero aunque vaya por detras del personaje.
+            m_walkAnimationPhase = static_cast<uint8_t>(1 + (m_walkAnimationPhase % footAnimPhases));
+            m_footTimer.restart();
+        }
+        return;
+    }
+
+    // Criaturas con velocidad de animacion propia: ahi el ritmo es deliberado y se
+    // mantiene el temporizador.
     int minFootDelay = 20;
     const int maxFootDelay = footAnimPhases > 2 ? 80 : 205;
     int footAnimDelay = footAnimPhases;
@@ -705,8 +749,7 @@ void Creature::updateWalkAnimation()
             footAnimDelay /= 1.5;
     }
 
-    const auto walkSpeed = m_walkingAnimationSpeed > 0 ? m_walkingAnimationSpeed : m_stepCache.getDuration(m_lastStepDirection);
-    const int footDelay = std::clamp<int>(walkSpeed / footAnimDelay, minFootDelay, maxFootDelay);
+    const int footDelay = std::clamp<int>(m_walkingAnimationSpeed / footAnimDelay, minFootDelay, maxFootDelay);
 
     if (m_footTimer.ticksElapsed() >= footDelay) {
         if (m_walkAnimationPhase == footAnimPhases) m_walkAnimationPhase = 1;
@@ -716,8 +759,46 @@ void Creature::updateWalkAnimation()
     }
 }
 
+PointF Creature::walkOffsetFor(const Otc::Direction dir, const float walked, const float size)
+{
+    PointF off;
+
+    if (dir == Otc::North || dir == Otc::NorthEast || dir == Otc::NorthWest)
+        off.y = size - walked;
+    else if (dir == Otc::South || dir == Otc::SouthEast || dir == Otc::SouthWest)
+        off.y = walked - size;
+
+    if (dir == Otc::East || dir == Otc::NorthEast || dir == Otc::SouthEast)
+        off.x = walked - size;
+    else if (dir == Otc::West || dir == Otc::NorthWest || dir == Otc::SouthWest)
+        off.x = size - walked;
+
+    return off;
+}
+
+PointF Creature::currentWalkOffset() const
+{
+    if (!m_walking || m_walkStepDuration <= 0.f)
+        return m_walkOffsetF;
+
+    const float size = g_gameConfig.getSpriteSize();
+
+    // Avance en el instante exacto de dibujar, nunca por debajo del ultimo ya
+    // conocido: con paralisis el paso se alarga y la posicion no puede retroceder.
+    const float walked = std::min<float>(
+        std::max<float>(m_walkedPixelsF, m_walkTimer.ticksElapsed() / m_walkStepDuration * size), size);
+
+    return walkOffsetFor(m_direction, walked, size);
+}
+
 void Creature::updateWalkOffset(const uint8_t totalPixelsWalked)
 {
+    // El entero manda en la logica (baldosa de paso, animacion, aviso de camara).
+    // El float es el respaldo de currentWalkOffset() cuando el paso ya termino.
+    const float size = g_gameConfig.getSpriteSize();
+
+    m_walkOffsetF = walkOffsetFor(m_direction, std::min<float>(m_walkedPixelsF, size), size);
+
     m_walkOffset = {};
     if (m_direction == Otc::North || m_direction == Otc::NorthEast || m_direction == Otc::NorthWest)
         m_walkOffset.y = g_gameConfig.getSpriteSize() - totalPixelsWalked;
@@ -799,12 +880,32 @@ void Creature::nextWalkUpdate()
 
 void Creature::updateWalk()
 {
-    const float walkTicksPerPixel = getStepDuration(true) / static_cast<float>(g_gameConfig.getSpriteSize());
+    const float size = g_gameConfig.getSpriteSize();
 
-    const int totalPixelsWalked = std::min<int>(m_walkTimer.ticksElapsed() / walkTicksPerPixel, g_gameConfig.getSpriteSize());
+    // Duracion REAL del paso, contando la diagonal.
+    //
+    // Antes se pedia con ignoreDiagonal, asi que el movimiento se repartia sobre la
+    // duracion normal: en una diagonal el personaje cruzaba la baldosa a velocidad
+    // de paso recto y luego se quedaba quieto el resto del tiempo (la diagonal
+    // cuesta el triple, WALK_DIAGONAL_EXTRA_COST=3 en el servidor y
+    // m_playerDiagonalWalkSpeed=3 aqui). De ahi que las diagonales se vieran a
+    // tirones. Repartiendo sobre la duracion completa, cruza mas despacio pero sin
+    // pararse.
+    m_walkStepDuration = static_cast<float>(getStepDuration());
+
+    const float walkedF = m_walkStepDuration > 0.f
+        ? std::min<float>(m_walkTimer.ticksElapsed() / m_walkStepDuration * size, size)
+        : size;
+    const int totalPixelsWalked = static_cast<int>(walkedF);
 
     // needed for paralyze effect
     m_walkedPixels = std::max<int>(m_walkedPixels, totalPixelsWalked);
+
+    const float antes = m_walkedPixelsF;
+    m_walkedPixelsF = std::max<float>(m_walkedPixelsF, walkedF);
+    // Distancia acumulada de la caminata entera: el ciclo de piernas no puede
+    // reiniciarse en cada baldosa o siempre adelantaria la misma pierna.
+    m_walkAnimDistance += m_walkedPixelsF - antes;
 
     const auto oldWalkOffset = m_walkOffset;
 
@@ -841,12 +942,16 @@ void Creature::terminateWalk()
     }
 
     m_walkedPixels = 0;
+    m_walkedPixelsF = 0.f;
+    m_walkStepDuration = 0.f;
     m_walkOffset = {};
+    m_walkOffsetF = {};
     m_walking = false;
 
     const auto self = static_self_cast<Creature>();
     m_walkFinishAnimEvent = g_dispatcher.scheduleEvent([self] {
         self->m_walkAnimationPhase = 0;
+        self->m_walkAnimDistance = 0.f;
         self->m_walkFinishAnimEvent = nullptr;
     }, g_game.getServerBeat());
 }
@@ -854,12 +959,12 @@ void Creature::terminateWalk()
 void Creature::setHealthPercent(const uint8_t healthPercent)
 {
     static constexpr Color
-        COLOR1(0x00, 0xBC, 0x00),
-        COLOR2(0x50, 0xA1, 0x50),
-        COLOR3(0xA1, 0xA1, 0x00),
-        COLOR4(0xBF, 0x0A, 0x0A),
-        COLOR5(0x91, 0x0F, 0x0F),
-        COLOR6(0x85, 0x0C, 0x0C);
+        COLOR1(0x00, 0xC0, 0x00),
+        COLOR2(0x60, 0xC0, 0x60),
+        COLOR3(0xC0, 0xC0, 0x00),
+        COLOR4(0xC0, 0x30, 0x30),
+        COLOR5(0xC0, 0x00, 0x00),
+        COLOR6(0x60, 0x00, 0x00);
 
     if (m_healthPercent == healthPercent) return;
 

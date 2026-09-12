@@ -253,6 +253,16 @@ function getfsrcpath(depth)
     return path
 end
 
+-- Reproduce un efecto de la interfaz.
+--
+-- El volumen sale del canal que le corresponda al tipo del efecto en el banco de
+-- sonidos, asi que los deslizadores de las opciones lo controlan solo.
+function playUISound(effectId)
+    if effectId and g_sounds and g_sounds.isAudioEnabled and g_sounds.isAudioEnabled() then
+        g_sounds.playSoundEffect(effectId)
+    end
+end
+
 function resolvepath(filePath, depth)
     if not filePath then
         return nil

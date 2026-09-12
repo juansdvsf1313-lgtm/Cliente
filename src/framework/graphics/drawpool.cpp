@@ -22,6 +22,8 @@
 
 #include "drawpool.h"
 
+#include <atomic>
+
 #include "painter.h"
 #include "textureatlas.h"
 #include "coordsbuffer.h"
@@ -412,7 +414,26 @@ void DrawPool::popTransformMatrix()
     m_transformMatrixStack.pop_back();
 }
 
-void DrawPool::PoolState::execute(DrawPool* pool) const {
+// Cuantas texturas nuevas se suben a la GPU como mucho en un fotograma.
+//
+// Subir un atlas de outfit en HD son 8 MB con glTexImage2D, y eso ocurre en el
+// hilo principal dentro del dibujado. Varias juntas alargan el fotograma lo
+// suficiente para notarse: medido, 23 tirones en 30 s con picos de 66 ms.
+static constexpr int UPLOADS_PER_FRAME = 2;
+static std::atomic_int s_uploadBudget{ UPLOADS_PER_FRAME };
+
+void DrawPool::resetUploadBudget() { s_uploadBudget.store(UPLOADS_PER_FRAME, std::memory_order_relaxed); }
+
+bool DrawPool::consumeUploadBudget() {
+    int left = s_uploadBudget.load(std::memory_order_relaxed);
+    while (left > 0) {
+        if (s_uploadBudget.compare_exchange_weak(left, left - 1, std::memory_order_relaxed))
+            return true;
+    }
+    return false;
+}
+
+bool DrawPool::PoolState::execute(DrawPool* pool) const {
     g_painter->setColor(color);
     g_painter->setOpacity(opacity);
     g_painter->setCompositionMode(compositionMode);
@@ -422,6 +443,12 @@ void DrawPool::PoolState::execute(DrawPool* pool) const {
     g_painter->setTransformMatrix(transformMatrix);
     if (action) action();
     if (texture) {
+        // Si toca subirla y ya se agoto el presupuesto del fotograma, se deja para
+        // el siguiente: mejor que el objeto tarde un fotograma mas en aparecer que
+        // estirar este.
+        if (texture->needsUpload() && !consumeUploadBudget())
+            return false;
+
         texture->create();
         g_painter->setTexture(texture);
         if (texture->canCacheInAtlas() && pool->m_atlas && !texture->getAtlasRegion(pool->m_atlas->getType())) {
@@ -429,6 +456,8 @@ void DrawPool::PoolState::execute(DrawPool* pool) const {
         }
     } else
         g_painter->setTexture(textureId, textureMatrixId);
+
+    return true;
 }
 
 void DrawPool::setFramebuffer(const Size& size) {

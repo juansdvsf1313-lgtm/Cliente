@@ -65,6 +65,10 @@ public:
     bool hasMipmaps() const { return getProp(hasMipMaps); }
     bool isSmooth() const { return getProp(smooth); }
     bool canCacheInAtlas() const { return getProp(Prop::_allowAtlasCache); }
+
+    // True mientras la imagen siga en memoria sin subir a la GPU. La subida la
+    // hace create() dentro del dibujado, asi que conviene racionarla.
+    bool needsUpload() const { return m_image != nullptr; }
     bool setupSize(const Size& size);
 
     virtual void allowAtlasCache();
@@ -92,6 +96,7 @@ protected:
     uint16_t m_transformMatrixId{ 0 };
 
     ImagePtr m_image;
+
 
     enum Prop : uint16_t
     {

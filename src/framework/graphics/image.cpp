@@ -22,12 +22,6 @@
 
 #include "image.h"
 
-#include <atomic>
-#include <string>
-
-// Rastro para diagnosticar quien hace un blit fuera de rango.
-thread_local std::string g_blitContext;
-
 #include "apngloader.h"
 #include "framework/core/filestream.h"
 #include "framework/core/resourcemanager.h"
@@ -119,19 +113,22 @@ void Image::overwriteMask(const Color& maskedColor, const Color& insideColor, co
 {
     assert(m_bpp == 4);
 
-    for (int p = 0; p < getPixelCount(); ++p) {
-        uint8_t& r = m_pixels[p * 4 + 0];
-        uint8_t& g = m_pixels[p * 4 + 1];
-        uint8_t& b = m_pixels[p * 4 + 2];
-        uint8_t& a = m_pixels[p * 4 + 3];
+    // En bytes crudos a proposito. Color guarda sus componentes en float y
+    // recalcula un hash al construirse (color.h:40), asi que hacerlo con objetos
+    // Color costaba cuatro divisiones y un empaquetado POR PIXEL. Esto corre para
+    // las cuatro mascaras de cada fotograma de cada outfit, y la ventana de
+    // outfits compone sus texturas en el hilo principal: era el tiron al abrirla.
+    const uint8_t mask[4]{ maskedColor.r(), maskedColor.g(), maskedColor.b(), maskedColor.a() };
+    const uint8_t inside[4]{ insideColor.r(), insideColor.g(), insideColor.b(), insideColor.a() };
+    const uint8_t outside[4]{ outsideColor.r(), outsideColor.g(), outsideColor.b(), outsideColor.a() };
 
-        Color pixelColor(r, g, b, a);
-        Color writeColor = (pixelColor == maskedColor) ? insideColor : outsideColor;
-
-        r = writeColor.r();
-        g = writeColor.g();
-        b = writeColor.b();
-        a = writeColor.a();
+    for (uint8_t* px = m_pixels.data(), *end = px + static_cast<size_t>(getPixelCount()) * 4; px < end; px += 4) {
+        const uint8_t* write = (px[0] == mask[0] && px[1] == mask[1] &&
+                                px[2] == mask[2] && px[3] == mask[3]) ? inside : outside;
+        px[0] = write[0];
+        px[1] = write[1];
+        px[2] = write[2];
+        px[3] = write[3];
     }
 }
 
@@ -139,19 +136,21 @@ void Image::overwrite(const Color& color)
 {
     assert(m_bpp == 4);
 
-    for (int p = 0; p < getPixelCount(); ++p) {
-        uint8_t& r = m_pixels[p * 4 + 0];
-        uint8_t& g = m_pixels[p * 4 + 1];
-        uint8_t& b = m_pixels[p * 4 + 2];
-        uint8_t& a = m_pixels[p * 4 + 3];
+    // Igual que overwriteMask: sin construir un Color por pixel. Los pixeles que
+    // ya valen exactamente Color::alpha se quedan como estan, que es lo que hacia
+    // la version anterior al reescribirlos con el mismo valor.
+    const uint8_t transparent[4]{ Color::alpha.r(), Color::alpha.g(), Color::alpha.b(), Color::alpha.a() };
+    const uint8_t solid[4]{ color.r(), color.g(), color.b(), color.a() };
 
-        Color pixelColor(r, g, b, a);
-        Color writeColor = (pixelColor == Color::alpha) ? Color::alpha : color;
+    for (uint8_t* px = m_pixels.data(), *end = px + static_cast<size_t>(getPixelCount()) * 4; px < end; px += 4) {
+        if (px[0] == transparent[0] && px[1] == transparent[1] &&
+            px[2] == transparent[2] && px[3] == transparent[3])
+            continue;
 
-        r = writeColor.r();
-        g = writeColor.g();
-        b = writeColor.b();
-        a = writeColor.a();
+        px[0] = solid[0];
+        px[1] = solid[1];
+        px[2] = solid[2];
+        px[3] = solid[3];
     }
 }
 
@@ -162,38 +161,35 @@ void Image::blit(const Point& dest, const ImagePtr& other)
     if (!other)
         return;
 
+    // El recorte a los limites del destino se calcula UNA vez y luego se copia por
+    // filas. Sin recorte, un blit que se salga escribe fuera del vector y corrompe
+    // el heap; la version anterior lo comprobaba pixel a pixel y ademas deducia x
+    // e y con una division y un modulo en cada uno.
+    const int ow = other->getWidth();
+    const int oh = other->getHeight();
+
+    const int x0 = std::max<int>(0, -dest.x);
+    const int y0 = std::max<int>(0, -dest.y);
+    const int x1 = std::min<int>(ow, m_size.width() - dest.x);
+    const int y1 = std::min<int>(oh, m_size.height() - dest.y);
+    if (x0 >= x1 || y0 >= y1)
+        return;
+
     const uint8_t* otherPixels = other->getPixelData();
 
-    // Recorte a los limites del destino. Sin esto, un blit que se salga escribe
-    // fuera del vector y corrompe el heap; con sprites mayores de 64 px pasa
-    // porque getBestTextureDimension() usa getSpriteSize() (pixeles) como tope
-    // del numero de tiles, y el fullImage se queda corto.
-    static std::atomic_int s_clipReported{ 0 };
-    if (dest.x < 0 || dest.y < 0 ||
-        dest.x + other->getWidth() > m_size.width() ||
-        dest.y + other->getHeight() > m_size.height()) {
-        if (s_clipReported.fetch_add(1) < 20) {
-            g_logger.error("[blit] FUERA DE RANGO: destino {}x{} en ({},{}) sobre imagen {}x{} | ctx: {}",
-                other->getWidth(), other->getHeight(), dest.x, dest.y,
-                m_size.width(), m_size.height(),
-                g_blitContext.empty() ? std::string("(sin contexto)") : g_blitContext);
-        }
-    }
+    for (int y = y0; y < y1; ++y) {
+        const uint8_t* src = otherPixels + (static_cast<size_t>(y) * ow + x0) * 4;
+        uint8_t* dst = m_pixels.data() +
+            (static_cast<size_t>(dest.y + y) * m_size.width() + dest.x + x0) * 4;
 
-    for (int p = 0; p < other->getPixelCount(); ++p) {
-        const int x = p % other->getWidth();
-        const int y = p / other->getWidth();
-        const int dx = dest.x + x;
-        const int dy = dest.y + y;
-        if (dx < 0 || dy < 0 || dx >= m_size.width() || dy >= m_size.height())
-            continue;
-        const int pos = (dy * m_size.width() + dx) * 4;
+        for (int x = x0; x < x1; ++x, src += 4, dst += 4) {
+            if (src[3] == 0)
+                continue;               // los pixeles transparentes no pisan el destino
 
-        if (otherPixels[p * 4 + 3] != 0) {
-            m_pixels[pos + 0] = otherPixels[p * 4 + 0];
-            m_pixels[pos + 1] = otherPixels[p * 4 + 1];
-            m_pixels[pos + 2] = otherPixels[p * 4 + 2];
-            m_pixels[pos + 3] = otherPixels[p * 4 + 3];
+            dst[0] = src[0];
+            dst[1] = src[1];
+            dst[2] = src[2];
+            dst[3] = src[3];
         }
     }
 }

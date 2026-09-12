@@ -39,7 +39,7 @@ SpriteAppearances g_spriteAppearances;
 void SpriteAppearances::init()
 {
     // in tibia 12.81 there is currently 3482 sheets
-    m_sheets.reserve(4000);
+    m_sheets.reserve(24000);   // 5.084 hojas en SD, 20.315 en HD
 }
 
 void SpriteAppearances::terminate()
@@ -246,15 +246,20 @@ SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(const int id, bool& isLoadi
         return nullptr;
     }
 
-    // find sheet
-    const auto sheetIt = std::ranges::find_if(m_sheets, [=](const SpriteSheetPtr& sheet) {
-        return id >= sheet->firstId && id <= sheet->lastId;
-    });
+    // Busqueda por biseccion sobre las hojas ordenadas por firstId.
+    //
+    // Antes recorria TODAS las hojas en cada consulta de sprite. En SD son 5.084;
+    // en HD son 20.315, y esto se llama una vez por cada sprite de cada textura:
+    // para un outfit de 120 fotogramas salian millones de comparaciones.
+    const auto sheetIt = std::ranges::upper_bound(m_sheets, id, {},
+        [](const SpriteSheetPtr& s) { return s->firstId; });
 
-    if (sheetIt == m_sheets.end())
+    if (sheetIt == m_sheets.begin())
         return nullptr;
 
-    const auto& sheet = *sheetIt;
+    const auto& sheet = *std::prev(sheetIt);
+    if (id < sheet->firstId || id > sheet->lastId)
+        return nullptr;
 
     if (load && !loadSpriteSheet(sheet)) {
         isLoading = sheet->m_loadingState == SpriteLoadState::LOADING;

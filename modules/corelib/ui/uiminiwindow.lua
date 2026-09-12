@@ -8,6 +8,9 @@ function UIMiniWindow.create()
 end
 
 function UIMiniWindow:open(dontSave)
+    if not self:isVisible() then
+        playUISound(UISoundEffects.WindowOpen)
+    end
     self:setVisible(true)
     if not dontSave then
         self:setSettings({
@@ -21,6 +24,7 @@ function UIMiniWindow:close(dontSave)
     if not self:isExplicitlyVisible() then
         return
     end
+    playUISound(UISoundEffects.WindowClose)
     self:setVisible(false)
 
     if not dontSave then
