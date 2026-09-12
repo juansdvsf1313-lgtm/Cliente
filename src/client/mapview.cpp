@@ -559,7 +559,9 @@ void MapView::onGlobalLightChange(const Light&)
 
 void MapView::updateLight()
 {
-    Light ambientLight = getCameraPosition().z > g_gameConfig.getMapSeaFloor() ? Light() : g_map.getLight();
+    // Bajo tierra no hay luz del mundo: la cueva parte de cero pase lo que pase.
+    const bool bajoTierra = getCameraPosition().z > g_gameConfig.getMapSeaFloor();
+    Light ambientLight = bajoTierra ? Light() : g_map.getLight();
     // Dos limites, los dos medidos contra el cliente oficial de Tibia:
     //
     //   kSueloMaximo  (120) - hasta donde llega el deslizador de luz ambiente.
@@ -574,8 +576,13 @@ void MapView::updateLight()
     //       recorta a lo que se ve en el cliente oficial.
     static constexpr uint8_t kSueloMaximo = 120;
     static constexpr uint8_t kBrilloMaximo = 190;
+    // Bajo tierra el deslizador llega algo menos: una cueva debe quedar mas
+    // cerrada que una noche a cielo abierto, aunque el jugador tenga la barra
+    // al maximo. Subir este numero aclara las cuevas; bajarlo las oscurece.
+    static constexpr uint8_t kSueloMaximoCueva = 100;
 
-    const auto suelo = static_cast<uint8_t>(std::min<float>(m_minimumAmbientLight, 1.0f) * kSueloMaximo);
+    const auto tope = bajoTierra ? kSueloMaximoCueva : kSueloMaximo;
+    const auto suelo = static_cast<uint8_t>(std::min<float>(m_minimumAmbientLight, 1.0f) * tope);
     ambientLight.intensity = std::max<uint8_t>(suelo, ambientLight.intensity);
     ambientLight.intensity = std::min<uint8_t>(ambientLight.intensity, kBrilloMaximo);
     m_lightView->setGlobalLight(ambientLight);
