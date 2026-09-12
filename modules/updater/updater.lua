@@ -62,25 +62,11 @@ local function downloadFiles(url, files, index, retries, doneCallback)
     end)
 end
 
-local function updateFiles(data, keepCurrentFiles)
-  if not updaterWindow then return end
-
-  if type(data) ~= "table" then
-    return Updater.error("Invalid data from updater api (not table)")
-  end
-
-  if type(data.error) == 'string' and data.error:len() > 0 then
-    return Updater.error(data.error)
-  end
-
-  if not data.files or type(data.url) ~= 'string' or data.url:len() < 4 then
-    return Updater.error("Invalid data from updater api: " .. json.encode(data, 2))
-  end
-
-  if data.keepFiles then
-    keepCurrentFiles = true
-  end
-
+-- El trabajo pesado va aparte: filesChecksums() es sincrona y hashea todos
+-- los archivos del cliente, asi que bloquea el hilo varios segundos. Si se
+-- llamara directamente, la ventana se quedaria congelada en 'Checking for
+-- updates' sin poder repintar, que es justo lo que se veia.
+local function updateFilesPaso2(data, keepCurrentFiles)
   local newFiles = false
   local finalFiles = {}
   local localFiles = g_resources.filesChecksums()
@@ -168,6 +154,35 @@ local function updateFiles(data, keepCurrentFiles)
       end
     end, 100)
   end)
+end
+
+local function updateFiles(data, keepCurrentFiles)
+  if not updaterWindow then return end
+
+  if type(data) ~= "table" then
+    return Updater.error("Invalid data from updater api (not table)")
+  end
+
+  if type(data.error) == 'string' and data.error:len() > 0 then
+    return Updater.error(data.error)
+  end
+
+  if not data.files or type(data.url) ~= 'string' or data.url:len() < 4 then
+    return Updater.error("Invalid data from updater api: " .. json.encode(data, 2))
+  end
+
+  if data.keepFiles then
+    keepCurrentFiles = true
+  end
+
+  -- Se avisa y se cede un frame para que el mensaje llegue a pintarse antes
+  -- de bloquear. No hay forma de forzar un repintado sincrono desde Lua.
+  updaterWindow.status:setText(tr('Comprobando archivos locales...'))
+  updaterWindow.mainProgress:setPercent(0)
+  scheduledEvent = scheduleEvent(function()
+    if not updaterWindow then return end
+    updateFilesPaso2(data, keepCurrentFiles)
+  end, 50)
 end
 
 -- public functions

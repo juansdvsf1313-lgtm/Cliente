@@ -174,8 +174,6 @@ local function setupComboBox()
 
     hdModeCombobox.onOptionChange = function(comboBox, option)
         local enabled = comboBox:getCurrentOption().data == 1
-        setOption('hdMode', enabled, true)
-        g_settings.set('hdMode', enabled)
 
         -- game_things es un modulo sandboxed: sus funciones globales viven en su
         -- propia tabla de entorno, no en _G (globals.lua: modules = package.loaded).
@@ -185,10 +183,33 @@ local function setupComboBox()
             g_logger.error('[hdMode] modules.game_things.reloadThingsAssets no disponible')
             return
         end
-        if not gameThings.reloadThingsAssets() then
-            displayErrorBox(tr('Graficos HD'),
-                tr('No se pudieron recargar los assets. Reinicia el cliente.'))
+
+        local function aplicar()
+            setOption('hdMode', enabled, true)
+            g_settings.set('hdMode', enabled)
+            if not gameThings.reloadThingsAssets() then
+                displayErrorBox(tr('Graficos HD'),
+                    tr('No se pudieron recargar los assets. Reinicia el cliente.'))
+            end
         end
+
+        -- Al activar HD los assets pueden no estar (son ~700 MB y no vienen en
+        -- el cliente) o estar desfasados. Se descargan antes de recargar, en vez
+        -- de caer a SD sin explicarle nada al jugador.
+        if enabled and gameThings.ensureHdAssets then
+            gameThings.ensureHdAssets(nil, function(ok, err)
+                if not ok then
+                    displayErrorBox(tr('Graficos HD'),
+                        tr('No se pudieron obtener los graficos HD.') ..
+                        (err and ('  --  ' .. tostring(err)) or ''))
+                    return
+                end
+                aplicar()
+            end)
+            return
+        end
+
+        aplicar()
     end
 
 
@@ -323,6 +344,11 @@ function controller:onInit()
         g_settings.setDefault(k, obj.value)
     end
 
+    -- Alt+F8 muestra y oculta el ping, igual que en el cliente oficial.
+    -- La opcion showPing ya existia (llama a client_topmenu.setPingVisible),
+    -- lo unico que faltaba era la tecla: no habia ningun binding a Alt+F8.
+    g_keyboard.bindKeyDown('Alt+F8', function() toggleOption('showPing') end)
+
     extraWidgets.audioButton = modules.client_topmenu.addTopRightToggleButton('audioButton', tr('Audio'),
         '/images/topbuttons/button_mute_up', function() toggleOption('enableAudio') end)
 
@@ -413,6 +439,8 @@ function controller:onInit()
 end
 
 function controller:onTerminate()
+    g_keyboard.unbindKeyDown('Alt+F8')
+
     -- Make sure all settings are saved before terminating
     g_settings.save()
     

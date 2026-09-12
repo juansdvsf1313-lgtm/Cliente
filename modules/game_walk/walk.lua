@@ -27,6 +27,12 @@ local turnKeys = {
     { "Control+Right", East },
     { "Control+Down",  South },
     { "Control+Left",  West },
+    -- El numerico ya servia para caminar pero nadie lo habia atado para girar.
+    -- Girar solo tiene cuatro direcciones, por eso no van el 1, 3, 7 y 9.
+    { "Control+Numpad8", North },
+    { "Control+Numpad6", East },
+    { "Control+Numpad2", South },
+    { "Control+Numpad4", West },
 }
 
 WalkController = Controller:new()
