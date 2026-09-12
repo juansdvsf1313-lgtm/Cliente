@@ -179,6 +179,24 @@ bool ThingTypeManager::loadAppearances(const std::string& file)
             int spritesCount = 0;
             std::string appearancesFile;
             const auto& document = getCatalogContent(file);
+
+            // El lado de la hoja lo declara el propio pack. Hay que fijarlo
+            // ANTES de construir ninguna SpriteSheet, porque el
+            // getSpritesPerSheet() de mas abajo ya depende de el. Un pack sin la
+            // marca es de los de toda la vida: 384. El HD reempaquetado trae 768.
+            uint16_t sheetSize = 384;
+            for (const auto& obj : document) {
+                if (obj["type"] == "sheetsize") {
+                    sheetSize = obj["size"].get<uint16_t>();
+                    break;
+                }
+            }
+            if (sheetSize != 384 && sheetSize != SPRITE_SHEET_MAX_SIZE) {
+                g_logger.error("Unsupported sprite sheet size {} in catalog, falling back to 384", sheetSize);
+                sheetSize = 384;
+            }
+            SpriteSheet::setSheetSize(sheetSize);
+
             for (const auto& obj : document) {
                 const auto& type = obj["type"];
                 if (type == "appearances") {

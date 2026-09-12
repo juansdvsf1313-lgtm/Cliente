@@ -79,7 +79,18 @@ enum class SpriteLoadState
 class SpriteSheet
 {
 public:
-    static constexpr uint16_t SIZE = 384;
+    // Lado de la hoja del pack cargado. NO es constante: 384 en SD y 768 en el
+    // pack HD reempaquetado. Lo fija loadAppearances() leyendo el catalogo,
+    // antes de construir ninguna hoja, y no vuelve a cambiar mientras ese pack
+    // este cargado. Por eso puede ser un estatico suelto y todas las cuentas de
+    // abajo siguen saliendo solas.
+    static inline uint16_t SIZE = 384;
+
+    static void setSheetSize(const uint16_t size) { SIZE = size; }
+
+    // Derivados del lado. Antes eran macros de config.h con el 384 dentro.
+    static uint32_t widthBytes() { return static_cast<uint32_t>(SIZE) * 4; }
+    static uint32_t bytesInSheet() { return static_cast<uint32_t>(SIZE) * SIZE * 4; }
 
     SpriteSheet(const int firstId, const int lastId, const SpriteLayout spriteLayout, std::string file) : firstId(firstId), lastId(lastId), spriteLayout(spriteLayout), file(std::move(
         file))

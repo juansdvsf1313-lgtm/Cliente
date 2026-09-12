@@ -127,7 +127,16 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
         const auto& fin = g_resources.openFile(path);
         fin->cache(true);
 
-        thread_local static std::array<uint8_t, LZMA_UNCOMPRESSED_SIZE> decompressBuffer;
+        // Dimensionado al maximo (768) porque es thread_local y no se puede
+        // redimensionar por pack. Lo que SI depende del pack es cuanto se le
+        // ofrece al descompresor, mas abajo.
+        thread_local static std::array<uint8_t, LZMA_UNCOMPRESSED_SIZE_MAX> decompressBuffer;
+
+        // Tamano real de este pack. LZMA1 crudo no lleva marca de fin: el
+        // descompresor solo devuelve LZMA_STREAM_END si el flujo llena
+        // exactamente lo que se le ofrece. Si aqui se pasara el tamano del
+        // buffer (768) en vez del de la hoja, un pack SD nunca terminaria.
+        const uint32_t uncompressedSize = SpriteSheet::bytesInSheet() + 122;
 
         /*
            CIP's header, always 32 (0x20) bytes.
@@ -175,7 +184,7 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
         stream.next_in = &fin->m_data[fin->tell()];
         stream.avail_in = fin->size() - fin->tell();
         stream.next_out = decompressBuffer.data();
-        stream.avail_out = decompressBuffer.size();
+        stream.avail_out = uncompressedSize;
 
         const auto result = lzma_code(&stream, LZMA_RUN);
         lzma_end(&stream);
@@ -191,14 +200,17 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
             (bmpOffsetPtr[2] << 16) |
             (bmpOffsetPtr[3] << 24);
 
+        const uint32_t bytesInSheet = SpriteSheet::bytesInSheet();
+        const uint32_t widthBytes = SpriteSheet::widthBytes();
+
         // validate offset
-        if (bmpDataOffset + BYTES_IN_SPRITE_SHEET > LZMA_UNCOMPRESSED_SIZE)
+        if (bmpDataOffset + bytesInSheet > decompressBuffer.size())
             throw stdext::exception("sprite sheet image offset out of bounds");
 
         uint8_t* bufferStart = decompressBuffer.data() + bmpDataOffset;
 
         // swap BGR ? RGB and fix magenta
-        for (int i = 0; i < BYTES_IN_SPRITE_SHEET; i += 4) {
+        for (uint32_t i = 0; i < bytesInSheet; i += 4) {
             std::swap(bufferStart[i], bufferStart[i + 2]); // B <-> R
 
             const uint32_t rgb = bufferStart[i] | (bufferStart[i + 1] << 8) | (bufferStart[i + 2] << 16);
@@ -211,19 +223,19 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
         }
 
         // vertical flip
-        constexpr int halfHeight = SpriteSheet::SIZE / 2;
-        uint8_t tempLine[SPRITE_SHEET_WIDTH_BYTES];
+        const int halfHeight = SpriteSheet::SIZE / 2;
+        uint8_t tempLine[SPRITE_SHEET_MAX_WIDTH_BYTES];
         for (int y = 0; y < halfHeight; ++y) {
-            uint8_t* top = bufferStart + y * SPRITE_SHEET_WIDTH_BYTES;
-            uint8_t* bottom = bufferStart + (SpriteSheet::SIZE - 1 - y) * SPRITE_SHEET_WIDTH_BYTES;
+            uint8_t* top = bufferStart + y * widthBytes;
+            uint8_t* bottom = bufferStart + (SpriteSheet::SIZE - 1 - y) * widthBytes;
 
-            std::memcpy(tempLine, top, SPRITE_SHEET_WIDTH_BYTES);
-            std::memcpy(top, bottom, SPRITE_SHEET_WIDTH_BYTES);
-            std::memcpy(bottom, tempLine, SPRITE_SHEET_WIDTH_BYTES);
+            std::memcpy(tempLine, top, widthBytes);
+            std::memcpy(top, bottom, widthBytes);
+            std::memcpy(bottom, tempLine, widthBytes);
         }
 
-        sheet->data = std::make_unique<uint8_t[]>(BYTES_IN_SPRITE_SHEET);
-        std::memcpy(sheet->data.get(), bufferStart, BYTES_IN_SPRITE_SHEET);
+        sheet->data = std::make_unique<uint8_t[]>(bytesInSheet);
+        std::memcpy(sheet->data.get(), bufferStart, bytesInSheet);
 
         sheet->m_loadingState.store(SpriteLoadState::LOADED, std::memory_order_release);
         return true;
@@ -296,7 +308,7 @@ ImagePtr SpriteAppearances::getSpriteImage(const int id, bool& isLoading)
         const int spriteWidthBytes = size.width() * 4;
 
         for (int height = size.height() * spriteRow, offset = 0; height < size.height() + (spriteRow * size.height()); height++, offset++) {
-            std::memcpy(&pixelData[offset * spriteWidthBytes], &sheet->data[(height * SPRITE_SHEET_WIDTH_BYTES) + (spriteColumn * spriteWidthBytes)], spriteWidthBytes);
+            std::memcpy(&pixelData[offset * spriteWidthBytes], &sheet->data[(height * SpriteSheet::widthBytes()) + (spriteColumn * spriteWidthBytes)], spriteWidthBytes);
         }
 
         if (!image->hasTransparentPixel()) {

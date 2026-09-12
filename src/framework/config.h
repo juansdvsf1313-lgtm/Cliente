@@ -26,10 +26,20 @@
 static constexpr float DEFAULT_DISPLAY_DENSITY = 1.f;
 
 // APPEARANCES
-#define BYTES_IN_SPRITE_SHEET 384 * 384 * 4
-#define LZMA_UNCOMPRESSED_SIZE BYTES_IN_SPRITE_SHEET + 122
+//
+// El lado de la hoja ya no es fijo: lo declara cada pack en su catalogo.
+// En SD son 384 y caben 12x12 sprites de 32. En HD el sprite dobla su lado, asi
+// que en una hoja de 384 solo caben 3x3 = 9 y el pack se dispara a 20.315 hojas;
+// con 768 vuelven a caber 36 y baja a ~5.100. Menos hojas es menos
+// descompresiones LZMA al entrar en zona nueva, que es el pop-in al correr.
+//
+// Estas constantes dimensionan buffers, asi que van al MAXIMO admitido. El
+// tamano real del pack cargado esta en SpriteSheet::SIZE.
+#define SPRITE_SHEET_MAX_SIZE 768
+#define BYTES_IN_SPRITE_SHEET_MAX (SPRITE_SHEET_MAX_SIZE * SPRITE_SHEET_MAX_SIZE * 4)
+#define LZMA_UNCOMPRESSED_SIZE_MAX (BYTES_IN_SPRITE_SHEET_MAX + 122)
+#define SPRITE_SHEET_MAX_WIDTH_BYTES (SPRITE_SHEET_MAX_SIZE * 4)
 #define LZMA_HEADER_SIZE LZMA_PROPS_SIZE + 8
-#define SPRITE_SHEET_WIDTH_BYTES 384 * 4
 
 // ENCRYPTION SYSTEM
 // Enable client encryption
