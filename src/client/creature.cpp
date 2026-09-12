@@ -1250,9 +1250,22 @@ uint16_t Creature::getStepDuration(const bool ignoreDiagonal, const Otc::Directi
 
     auto duration = ignoreDiagonal ? m_stepCache.duration : m_stepCache.getDuration(m_lastStepDirection);
 
+    // Aqui el OTClient sumaba "10 ms por cada paso encolado" como colchon contra
+    // el desincronizado. Tibia real no hace eso: todas sus duraciones de paso son
+    // multiplos exactos del latido de 50 ms (ver Speed Breakpoints en TibiaWiki).
+    //
+    // Ese extra costaba entre un 10% y un 23% de velocidad y pesaba mas cuanto
+    // mas rapido ibas: con pasos de 100 ms, que es lo que da un personaje de
+    // nivel alto en suelo de friccion 100, sumar 10-30 ms es enorme; con pasos de
+    // 500 ms de un nivel bajo, ni se nota. Por eso "el nivel 1200 camina lento".
+    //
+    // En su lugar va un colchon FIJO. La diferencia importa: uno que crece con
+    // la cola castiga precisamente al que va rapido (mas velocidad -> mas pasos
+    // encolados -> mas penalizacion), que era el bug. Uno fijo cuesta lo mismo a
+    // todos los niveles y a 100 ms por paso son 5 ms, un 5%.
+    static constexpr uint16_t kColchonPasoMs = 5;
     if (isCameraFollowing() && isLocalPlayer()) {
-        const auto& localPlayer = static_self_cast<LocalPlayer>();
-        duration += 10 * std::max<int>(1, localPlayer->getPreWalkingSize());
+        duration += kColchonPasoMs;
     }
 
     return duration;

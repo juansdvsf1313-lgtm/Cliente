@@ -323,7 +323,11 @@ return {
         end
     },
     limitVisibleDimension             = {
-        value = false,
+        -- Marcado por defecto a proposito. El servidor solo envia 17x13 casillas
+        -- (MAP_MAX_CLIENT_VIEW_PORT 8 y 6); si la ventana pide pintar mas, el
+        -- cliente dibuja el sobrante SIN datos y al correr en horizontal se ve
+        -- un borde "cargando". Con esto nunca se pinta mas alla de lo recibido.
+        value = true,
         action = function(value, options, controller, panels, extraWidgets)
             panels.gameMapPanel:setLimitVisibleDimension(value)
         end
