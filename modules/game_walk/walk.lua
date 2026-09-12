@@ -239,11 +239,16 @@ end
 --- Handles the end of a walking event.
 local function onWalkFinish(player)
     if nextWalkDir then
-        if not g_game.getFeature(GameAllowPreWalk) then
-            walk(nextWalkDir)
-        else
-            addWalkEvent(nextWalkDir, 50)
-        end
+        -- Antes, con pre-walk activado se esperaban 50 ms para cambiar de
+        -- direccion, y sin pre-walk era inmediato: justo al reves de lo
+        -- razonable, porque el pre-walk esta para responder ANTES, no despues.
+        -- Con 0 de ping esos 50 ms son toda la sensacion de tardanza, y encima
+        -- se suman a los 10-14 ms que cuesta la pulsacion en Lua.
+        --
+        -- Ahora entra por la misma rama inmediata que ya usaba el caso sin
+        -- pre-walk. Si apareciera rubber-banding al cambiar de direccion muy
+        -- rapido, volver a addWalkEvent(nextWalkDir, N) con N de 10 a 20.
+        walk(nextWalkDir)
     end
 end
 

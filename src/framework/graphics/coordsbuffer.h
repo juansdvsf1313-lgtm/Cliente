@@ -62,6 +62,15 @@ public:
         m_vertexArray.addQuad(dest);
         m_textureCoordArray.addQuad(src);
     }
+
+    // srcOffset desplaza el muestreo de la textura una fraccion de texel. El
+    // destino no se toca: lo que se mueve es de donde se lee, que es como se
+    // consigue que el mundo scrollee en sub-pixel.
+    void addQuad(const Rect& dest, const Rect& src, const PointF& srcOffset)
+    {
+        m_vertexArray.addQuad(dest);
+        m_textureCoordArray.addQuad(src, srcOffset);
+    }
     void addUpsideDownQuad(const Rect& dest, const Rect& src)
     {
         m_vertexArray.addUpsideDownQuad(dest);

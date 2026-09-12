@@ -59,7 +59,8 @@ void UIMap::draw(const DrawPoolType drawPane) {
         }, [this] {
             m_mapView->registerEvents();
         }, m_mapView->m_posInfo.rect, m_mapView->m_posInfo.srcRect,
-           m_mapView->getCameraPosition().z == g_gameConfig.getMapSeaFloor() ? Color(0xFFA54C27U) : Color::black);
+           m_mapView->getCameraPosition().z == g_gameConfig.getMapSeaFloor() ? Color(0xFFA54C27U) : Color::black,
+           m_mapView->m_posInfo.subPixel);
 
         g_drawPool.preDraw(DrawPoolType::CREATURE_INFORMATION, [] {});
     } else if (drawPane == DrawPoolType::LIGHT) {

@@ -59,6 +59,17 @@ struct MapPosInfo
     float verticalStretchFactor;
     float scaleFactor;
 
+    // Parte decimal del desplazamiento de camara que srcRect no puede guardar,
+    // por ser un Rect de enteros. Se aplica al muestrear el framebuffer: con
+    // ella el mundo se desplaza en sub-pixel en vez de a saltos de un texel.
+    //
+    // Sin esto, a 500 fps con pasos de 100 ms y 64 texeles por baldosa, el mundo
+    // cambia de posicion 640 veces por segundo contra 500 fotogramas: 1,28
+    // texeles por fotograma que, al no poder ser fraccion, salen como 1,1,2,1,2...
+    // Ese patron irregular es lo que se ve como movimiento poco fluido, y no lo
+    // arregla tener mas fps.
+    PointF subPixel;
+
     bool isInRange(const Position& pos, const bool ignoreZ = false) const
     {
         return camera.isInRange(pos, awareRange.left - 1, awareRange.right - 2, awareRange.top - 1, awareRange.bottom - 2, ignoreZ);

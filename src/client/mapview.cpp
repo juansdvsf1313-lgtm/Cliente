@@ -856,9 +856,19 @@ void MapView::move(const int32_t x, const int32_t y)
 Rect MapView::calcFramebufferSource(const Size& destSize)
 {
     Point drawOffset = ((m_drawDimension - m_visibleDimension - Size(1)).toPoint() / 2) * m_tileSize;
-    if (isFollowingCreature())
-        drawOffset += m_followingCreature->getWalkOffsetScaled(m_pool->getScaleFactor());
-    else if (!m_moveOffset.isNull())
+
+    // El entero elige el texel del framebuffer; el decimal que sobra se guarda y
+    // se aplica al muestrearlo. Antes se perdia en el redondeo, y con el se
+    // perdia la fluidez: el mundo solo podia avanzar de texel en texel, asi que
+    // a fps altos unos fotogramas avanzaban uno, otros dos y otros ninguno.
+    m_posInfo.subPixel = {};
+    if (isFollowingCreature()) {
+        const auto& offF = m_followingCreature->getWalkOffsetScaledF(m_pool->getScaleFactor());
+        const Point offI(static_cast<int>(std::lround(offF.x)),
+                         static_cast<int>(std::lround(offF.y)));
+        drawOffset += offI;
+        m_posInfo.subPixel = { offF.x - offI.x, offF.y - offI.y };
+    } else if (!m_moveOffset.isNull())
         drawOffset += m_moveOffset * m_pool->getScaleFactor();
 
     const auto& srcVisible = m_visibleDimension * m_tileSize;

@@ -152,6 +152,15 @@ public:
         return { static_cast<int>(std::lround(off.x * scale)),
                  static_cast<int>(std::lround(off.y * scale)) };
     }
+
+    // El mismo valor SIN redondear. La camara necesita el entero para elegir el
+    // texel del framebuffer, pero la parte decimal ya no se tira: se aplica al
+    // muestrearlo (MapPosInfo::subPixel) y el mundo se desplaza en sub-pixel.
+    PointF getWalkOffsetScaledF(const float scale) const {
+        const auto& off = currentWalkOffset();
+        return { off.x * scale, off.y * scale };
+    }
+
     PointF getJumpOffset() { return m_jumpOffset; }
     Position getLastStepFromPosition() const { return m_lastStepFromPosition; }
     Position getLastStepToPosition() const { return m_lastStepToPosition; }

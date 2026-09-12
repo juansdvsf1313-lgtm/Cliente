@@ -195,7 +195,7 @@ void DrawPoolManager::addBoundingRect(const Rect& dest, const Color& color, cons
     });
 }
 
-void DrawPoolManager::preDraw(const DrawPoolType type, const std::function<void()>& f, const std::function<void()>& beforeRelease, const Rect& dest, const Rect& src, const Color& colorClear)
+void DrawPoolManager::preDraw(const DrawPoolType type, const std::function<void()>& f, const std::function<void()>& beforeRelease, const Rect& dest, const Rect& src, const Color& colorClear, const PointF& srcOffset)
 {
     select(type);
     const auto pool = getCurrentPool();
@@ -208,8 +208,8 @@ void DrawPoolManager::preDraw(const DrawPoolType type, const std::function<void(
         beforeRelease();
 
     if (pool->hasFrameBuffer()) {
-        addAction([pool, dest, src, colorClear] {
-            pool->m_framebuffer->prepare(dest, src, colorClear);
+        addAction([pool, dest, src, colorClear, srcOffset] {
+            pool->m_framebuffer->prepare(dest, src, colorClear, 0, srcOffset);
         });
     }
 

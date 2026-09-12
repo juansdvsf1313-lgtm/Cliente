@@ -137,7 +137,7 @@ void FrameBuffer::internalRelease() const
     boundFbo = m_prevBoundFbo;
 }
 
-void FrameBuffer::prepare(const Rect& dest, const Rect& src, const Color& colorClear, uint8_t flipDirection)
+void FrameBuffer::prepare(const Rect& dest, const Rect& src, const Color& colorClear, uint8_t flipDirection, const PointF& srcOffset)
 {
     const auto& _dest = dest.isValid() ? dest : Rect(0, 0, getSize());
     const auto& _src = src.isValid() ? src : Rect(0, 0, getSize());
@@ -152,7 +152,9 @@ void FrameBuffer::prepare(const Rect& dest, const Rect& src, const Color& colorC
     } else if (flipDirection == 2) {
         m_coordsBuffer.addVerticallyFlippedQuad(_dest, _src);
     } else {
-        m_coordsBuffer.addQuad(_dest, _src);
+        // Solo el caso sin volteo lleva sub-pixel: es el del mapa, que es el
+        // unico que scrollea. Los volteados son efectos puntuales.
+        m_coordsBuffer.addQuad(_dest, _src, srcOffset);
     }
 }
 

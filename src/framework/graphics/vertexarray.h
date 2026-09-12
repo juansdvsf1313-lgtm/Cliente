@@ -85,10 +85,18 @@ public:
 
     void addQuad(const Rect& rect)
     {
-        const float top = rect.top();
-        const float right = rect.right() + 1;
-        const float bottom = rect.bottom() + 1;
-        const float left = rect.left();
+        addQuad(rect, {});
+    }
+
+    // Con desplazamiento decimal. El buffer ya era de float, asi que no cuesta
+    // nada: solo hacia falta que alguien dejara de redondear antes de llegar
+    // aqui. Se usa para el muestreo sub-pixel del framebuffer del mapa.
+    void addQuad(const Rect& rect, const PointF& offset)
+    {
+        const float top = rect.top() + offset.y;
+        const float right = rect.right() + 1 + offset.x;
+        const float bottom = rect.bottom() + 1 + offset.y;
+        const float left = rect.left() + offset.x;
 
         float arr[] = {
             left, top,

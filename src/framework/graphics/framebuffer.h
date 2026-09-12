@@ -71,7 +71,7 @@ private:
 
     void internalBind();
     void internalRelease() const;
-    void prepare(const Rect& dest, const Rect& src, const Color& colorClear = Color::alpha, uint8_t flipDirection = 0);
+    void prepare(const Rect& dest, const Rect& src, const Color& colorClear = Color::alpha, uint8_t flipDirection = 0, const PointF& srcOffset = {});
 
     Size m_oldSize;
 
