@@ -1112,6 +1112,35 @@ function ApiJson.toggleLockGroup(optionKey, rangeStart, rangeEnd)
     return newState
 end
 
+-- Getters que necesita el panel de hotkeys para listar y leer perfiles. La
+-- maquinaria de crear/renombrar/borrar/cambiar ya estaba (createHotkeySet,
+-- renameHotkeySet, removeHotkeySet, setCurrentHotkeySetName); solo faltaba
+-- poder consultarlos desde fuera.
+function ApiJson.getHotkeySetNames()
+    ApiJson.bootstrap()
+    local options = ensureState()
+    local names = {}
+    for name in pairs(options.hotkeySets or {}) do
+        names[#names + 1] = name
+    end
+    table.sort(names)
+    return names
+end
+
+function ApiJson.getHotkeySet(name)
+    if not name or name == "" then
+        return nil
+    end
+    ApiJson.bootstrap()
+    local options = ensureState()
+    return (options.hotkeySets or {})[name]
+end
+
+function ApiJson.getCurrentHotkeySetName()
+    ApiJson.bootstrap()
+    return ensureState().currentHotkeySetName
+end
+
 function ApiJson.hasCurrentHotkeySet()
     return validateHotkeySet() ~= nil
 end

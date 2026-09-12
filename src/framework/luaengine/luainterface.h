@@ -249,6 +249,10 @@ private:
     static int luaErrorHandler(lua_State* L);
     /// Handle bound cpp functions callbacks
     static int luaCppFunctionCallback(lua_State* L);
+    /// Cuerpo real del callback. Va aparte y SIN alinear a proposito: deja el
+    /// marco de luaCppFunctionCallback limpio de destructores y de try/catch,
+    /// para que el desenrollado de lua_error no los ejecute dos veces.
+    static int luaCppFunctionCallbackInterno(lua_State* L);
     /// Collect bound cpp function pointers
     static int luaCollectCppFunction(lua_State* L);
 

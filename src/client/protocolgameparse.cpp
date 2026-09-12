@@ -1952,6 +1952,12 @@ void ProtocolGame::parseMagicEffect(const InputMessagePtr& msg)
                         continue;
                     }
 
+                    // 304-309: los seis sprites de golpe por tipo de arma. Se
+                    // descartan si el jugador apago la animacion de ataque.
+                    if (effectId >= 304 && effectId <= 309 && !g_game.isShowingAttackAnimation()) {
+                        break;
+                    }
+
                     const auto& effect = std::make_shared<Effect>();
                     effect->setId(effectId);
                     effect->setSource(static_cast<Otc::MagicEffectSources>(effectSource));

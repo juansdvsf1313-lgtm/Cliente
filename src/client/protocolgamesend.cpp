@@ -1321,6 +1321,10 @@ void ProtocolGame::sendRequestStoreHome()
     const auto& msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientRequestStoreOffers);
     msg->addU8(Otc::Store_Type_Actions_t::OPEN_HOME);
+    // El servidor lee sortOrder + serviceType al final de cualquier
+    // ClientRequestStoreOffers; sin estos dos bytes se queda sin datos.
+    msg->addU8(0); // sortOrder
+    msg->addU8(0); // serviceType
     send(msg);
 }
 void ProtocolGame::sendRequestStorePremiumBoost()
@@ -1329,6 +1333,10 @@ void ProtocolGame::sendRequestStorePremiumBoost()
     msg->addU8(Proto::ClientRequestStoreOffers);
     msg->addU8(Otc::Store_Type_Actions_t::OPEN_PREMIUM_BOOST);
     msg->addU8(1);
+    // El servidor lee sortOrder + serviceType al final de cualquier
+    // ClientRequestStoreOffers; sin estos dos bytes se queda sin datos.
+    msg->addU8(0); // sortOrder
+    msg->addU8(0); // serviceType
     send(msg);
 }
 
@@ -1338,6 +1346,10 @@ void ProtocolGame::sendRequestUsefulThings(const uint8_t offerId)
     msg->addU8(Proto::ClientRequestStoreOffers);
     msg->addU8(Otc::Store_Type_Actions_t::OPEN_USEFUL_THINGS);
     msg->addU8(offerId);
+    // El servidor lee sortOrder + serviceType al final de cualquier
+    // ClientRequestStoreOffers; sin estos dos bytes se queda sin datos.
+    msg->addU8(0); // sortOrder
+    msg->addU8(0); // serviceType
     send(msg);
 }
 

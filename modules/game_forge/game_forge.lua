@@ -190,7 +190,7 @@ ForgeController.baseSelected = {
     imagePath = nil,
     rarityClipObject = nil,
     count = 0,
-    countLabel = "0 / 1",
+    countLabel = "0/1",
     key = "",
     targetTier = 0
 }
@@ -580,18 +580,8 @@ ForgeController.fusion = {
 
 -- Store callback in ForgeController to prevent garbage collection
 ForgeController.fusion.handleSelect = function(item)
-    -- [TRAZA TEMPORAL] captura el error al seleccionar y lo escribe al momento,
-    -- porque el log del cliente se pierde si revienta antes de volcarse.
-    local ok, err = pcall(function()
-        ForgeController.fusion.selectedTarget = cloneValue(ForgeController.baseSelected)
-        ForgeController:handleSelect(ForgeController.fusion, item, false)
-    end)
-    if not ok then
-        local texto = 'ERROR al seleccionar item:' .. string.char(10) .. tostring(err) ..
-                      string.char(10) .. debug.traceback('', 2)
-        pcall(function() g_resources.writeFileContentsToWorkDir('traza_error_forge.txt', texto) end)
-        g_logger.error(texto)
-    end
+    ForgeController.fusion.selectedTarget = cloneValue(ForgeController.baseSelected)
+    ForgeController:handleSelect(ForgeController.fusion, item, false)
 end
 
 -- Store callback in ForgeController to prevent garbage collection
@@ -657,6 +647,7 @@ ForgeController.transfer = {
 function ForgeController:toggleTransferMenu()
     self:resetTabsClip()
     self.currentTab = 'transfer'
+    __volcarGeomTab('transfer')
     self.transfer.clip = { x = 0, y = 34, width = 116, height = 34 }
 end
 
@@ -675,7 +666,7 @@ local function handleFusionItems(data)
             item.rarityClipObject = rarityClipObject
         end
 
-        item.countLabel = string.format("%d / %d", item.count, 1)
+        item.countLabel = string.format("%d/%d", item.count, 1)
         table.insert(currentList, item)
     end
 
@@ -859,7 +850,7 @@ local function handleTransferItems(data)
                     item.imagePath = imagePath
                     item.rarityClipObject = rarityClipObject
                 end
-                item.countLabel = string.format("%d / %d", item.count, 1)
+                item.countLabel = string.format("%d/%d", item.count, 1)
                 table.insert(currentList[transferType], item)
             end
         end
@@ -990,11 +981,6 @@ function forgeData(data)
     -- CONVERSION
 end
 
--- [TRAZA TEMPORAL] registra que devuelve getColor para cada etiqueta
-local function __anotarColor(tipo, valor)
-    return valor
-end
-
 function ForgeController:getColor(currentType)
     ForgeController.conversion:handleButtons()
     local red = Helpers.red
@@ -1003,37 +989,37 @@ function ForgeController:getColor(currentType)
 
     if currentType == "dustToSilver" then
         if self.currentDust >= self.conversion.necessaryDustToSliver then
-            return __anotarColor(currentType, base)
+            return base
         else
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "sliverToCore" then
         if self.currentSlivers >= self.conversion.sliverToCore then
-            return __anotarColor(currentType, base)
+            return base
         else
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "increaseDustLimit" then
         if self.currentDust >= self.conversion.dustMaxIncreaseCost then
-            return __anotarColor(currentType, base)
+            return base
         else
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "fusion-preview-count-label" then
         if self.fusion.selected.id == -1 then
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "transfer-preview-count-label" then
         if self.transfer.selected.id == -1 then
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
@@ -1044,13 +1030,13 @@ function ForgeController:getColor(currentType)
         end
 
         if self.currentDust < necessaryDust then
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "transfer-dust" or currentType == "transfer-exalted" then
         if self.transfer.selected.id == -1 then
-            return __anotarColor(currentType, red)
+            return red
         end
 
         if currentType == "transfer-dust" then
@@ -1059,51 +1045,51 @@ function ForgeController:getColor(currentType)
                 self.transfer.dustLabel = necessaryDust
             end
             if self.currentDust < necessaryDust then
-                return __anotarColor(currentType, red)
+                return red
             end
         end
         if currentType == "transfer-exalted" then
             if self.currentExaltedCores < self.transfer.necessaryExaltedCores then
-                return __anotarColor(currentType, red)
+                return red
             end
         end
     end
 
     if currentType == "price" then
         if self.rawPrice == 0 or self.rawPrice > self.rawCurrentGold then
-            return __anotarColor(currentType, red)
+            return red
         end
     end
 
     if currentType == "improve-chance" then
         if not self.fusion.chanceImprovedChecked then
-            return __anotarColor(currentType, red)
+            return red
         else
-            return __anotarColor(currentType, green)
+            return green
         end
     end
 
     if currentType == "reduce-loss" then
         if not self.fusion.reduceTierLossChecked then
-            return __anotarColor(currentType, red)
+            return red
         else
-            return __anotarColor(currentType, green)
+            return green
         end
     end
 
     if currentType == "improve-chance-cost" then
-        if self.currentExaltedCores <= 0 then return __anotarColor(currentType, red) end
+        if self.currentExaltedCores <= 0 then return red end
 
-        if self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1 then return __anotarColor(currentType, red) end
+        if self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1 then return red end
     end
 
     if currentType == "reduce-loss-cost" then
-        if self.currentExaltedCores <= 0 then return __anotarColor(currentType, red) end
+        if self.currentExaltedCores <= 0 then return red end
 
-        if self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1 then return __anotarColor(currentType, red) end
+        if self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1 then return red end
     end
 
-    return __anotarColor(currentType, base)
+    return base
 end
 
 -- CONVERSION MENU
@@ -1198,6 +1184,7 @@ end
 function ForgeController:toggleConversionMenu()
     self:resetTabsClip()
     self.currentTab = 'conversion'
+    __volcarGeomTab('conversion')
     self.conversion.clip = { x = 0, y = 34, width = 116, height = 34 }
 end
 
@@ -1207,15 +1194,47 @@ end
 ForgeController.history = {
     currentPage = 0,
     lastPage = 0,
+    paginaServidor = 0,  -- indice que usa el servidor (0 = lo mas reciente)
     showPreviousButton = false,
     showNextButton = false,
     list = {},
     clip = { x = 0, y = 0, width = 118, height = 34 }
 }
+-- [TRAZA TEMPORAL] geometria de la pestana activa
+local function __rec(w, prof, salida)
+    if not w then return end
+    local ok = pcall(function() return w:isDestroyed() end)
+    if not ok or w:isDestroyed() then return end
+    local px, py, sw, sh, txt, vis = -1, -1, -1, -1, "", "?"
+    pcall(function() local q = w:getPosition(); px, py = q.x, q.y end)
+    pcall(function() local z = w:getSize(); sw, sh = z.width, z.height end)
+    pcall(function() txt = tostring(w:getText() or "") end)
+    pcall(function() vis = tostring(w:isVisible()) end)
+    salida[#salida+1] = string.rep("  ", prof) .. "pos=" .. px .. "," .. py ..
+        " tam=" .. sw .. "x" .. sh .. " vis=" .. vis ..
+        (txt ~= "" and (" [" .. txt:sub(1,18) .. "]") or "")
+    local hijos = {}
+    pcall(function() hijos = w:getChildren() or {} end)
+    for i = 1, #hijos do __rec(hijos[i], prof+1, salida) end
+end
+
+function __volcarGeomTab(nombre)
+    scheduleEvent(function()
+        pcall(function()
+            local salida = {}
+            __rec(ForgeController.ui, 0, salida)
+            g_resources.writeFileContentsToWorkDir("geom_" .. nombre .. ".txt",
+                table.concat(salida, string.char(10)) .. string.char(10))
+        end)
+    end, 900)
+end
+
 function ForgeController:toggleHistoryMenu()
     self:resetTabsClip()
     self.currentTab = 'history'
-    g_game.sendForgeBrowseHistoryRequest(0)
+    -- Se pide un numero alto a proposito: el servidor lo recorta a la ultima
+    -- pagina que exista, que es la que se esta escribiendo (tus forjas de hoy).
+    g_game.sendForgeBrowseHistoryRequest(255)
     self.history.clip = { x = 0, y = 34, width = 118, height = 34 }
 end
 
@@ -1228,17 +1247,26 @@ local historyActionLabels = {
 }
 
 function onBrowseForgeHistory(page, lastPage, currentCount, historyList)
-    page = math.max(tonumber(page) or 0, 1)
-    lastPage = math.max(tonumber(lastPage) or page, 1)
+    -- El servidor manda la pagina en base 0 y el total en base 1 (ver
+    -- ProtocolGame::sendForgeHistory). math.max(page,1) convertia el 0 y el 1
+    -- en lo mismo, y de ahi venia el descuadre de paginas.
+    -- El servidor numera en base 0 y su pagina 0 es la MAS RECIENTE.
+    local paginaServidor = math.max(tonumber(page) or 0, 0)
+    lastPage = math.max(tonumber(lastPage) or 1, 1)
     currentCount = tonumber(currentCount) or 0
-    lastPage = lastPage > 1 and lastPage - 1 or lastPage
 
+    -- La pagina 1 es la de lo mas reciente y es donde se abre, asi lo ultimo que
+    -- hiciste sale de entrada. El servidor trocea siempre desde lo mas nuevo, asi
+    -- que la pagina incompleta (el sobrante) cae al final, que es donde se espera
+    -- que acabe la lista.
+    local paginaMostrada = paginaServidor + 1
 
-    ForgeController.history.currentPage = page
+    ForgeController.history.paginaServidor = paginaServidor
+    ForgeController.history.currentPage = paginaMostrada
     ForgeController.history.lastPage = lastPage
 
-    ForgeController.history.showPreviousButton = page > 1
-    ForgeController.history.showNextButton = page < lastPage
+    ForgeController.history.showPreviousButton = paginaMostrada > 1
+    ForgeController.history.showNextButton = paginaMostrada < lastPage
 
     for _, entry in ipairs(historyList) do
         -- La plantilla no resolvia {{row.createdAt}} y pintaba el marcador crudo.
@@ -1256,26 +1284,29 @@ function onBrowseForgeHistory(page, lastPage, currentCount, historyList)
             end
         end
     end
+    -- El servidor ya las manda de mas reciente a mas antigua, que es como se
+    -- quieren ver: al abrir, la ultima forja arriba del todo.
     ForgeController.history.list = historyList or {}
 
 end
 
 function ForgeController.history.onHistoryPreviousPage()
-    local currentPage = ForgeController.history.currentPage or 0
-    if currentPage <= 1 then
+    -- "Previous" = hacia lo mas reciente = indice de servidor mas bajo
+    local paginaServidor = ForgeController.history.paginaServidor or 0
+    if paginaServidor <= 0 then
         return
     end
 
-    g_game.sendForgeBrowseHistoryRequest(currentPage - 1)
+    g_game.sendForgeBrowseHistoryRequest(paginaServidor - 1)
 end
 
 function ForgeController.history.onHistoryNextPage()
-    local currentPage = ForgeController.history.currentPage or 0
-    local lastPage = ForgeController.history.lastPage or currentPage
-
-    if currentPage >= lastPage then
+    -- "Next" = hacia atras en el tiempo = indice de servidor mas alto
+    local paginaServidor = ForgeController.history.paginaServidor or 0
+    local lastPage = ForgeController.history.lastPage or 1
+    if paginaServidor + 1 > lastPage - 1 then
         return
     end
 
-    g_game.sendForgeBrowseHistoryRequest(currentPage + 1)
+    g_game.sendForgeBrowseHistoryRequest(paginaServidor + 1)
 end

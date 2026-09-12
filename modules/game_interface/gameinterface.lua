@@ -1122,8 +1122,13 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                 -- If we couldn't use the item through any of the above methods,
                 -- but it's pickupable, try to pick it up (like in Classic Control mode)
                 if useThing:isPickupable() then
-                    g_game.move(useThing, useThing:getPosition(), 1)
-                    return true
+                    -- Sin posicion (items virtuales, como los de la forja) no se
+                    -- puede mover: pasarle nil a g_game.move tumbaba el cliente.
+                    local origen = useThing:getPosition()
+                    if origen then
+                        g_game.move(useThing, origen, 1)
+                        return true
+                    end
                 end
 
                 -- If we couldn't use or pick up the item, try to walk to its position if possible
@@ -1282,8 +1287,14 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
 
                 -- Handle pickupable items if no container/corpse was handled
                 if lookThing and not lookThing:isCreature() and lookThing:isPickupable() then
-                    g_game.move(lookThing, lookThing:getPosition(), 1)
-                    return true
+                    -- Los items que no estan en el mapa ni en un contenedor (los de la
+                    -- forja, por ejemplo) no tienen posicion. Pasarle nil a g_game.move
+                    -- lanzaba un error de Lua desde C++ y el cliente se caia.
+                    local origen = lookThing:getPosition()
+                    if origen then
+                        g_game.move(lookThing, origen, 1)
+                        return true
+                    end
                 end
             end
 
@@ -1363,8 +1374,13 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
 
                 -- Handle pickupable items
                 if lookThing and not lookThing:isCreature() and lookThing:isPickupable() then
-                    g_game.move(lookThing, lookThing:getPosition(), 1)
-                    return true
+                    -- Sin posicion (items virtuales, como los de la forja) no se
+                    -- puede mover: pasarle nil a g_game.move tumbaba el cliente.
+                    local origen = lookThing:getPosition()
+                    if origen then
+                        g_game.move(lookThing, origen, 1)
+                        return true
+                    end
                 end
             end
 
@@ -1395,8 +1411,13 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
 
                 -- Handle pickupable items in the game world
                 if lookThing and not lookThing:isCreature() and lookThing:isPickupable() then
-                    g_game.move(lookThing, lookThing:getPosition(), 1)
-                    return true
+                    -- Sin posicion (items virtuales, como los de la forja) no se
+                    -- puede mover: pasarle nil a g_game.move tumbaba el cliente.
+                    local origen = lookThing:getPosition()
+                    if origen then
+                        g_game.move(lookThing, origen, 1)
+                        return true
+                    end
                 end
             end
 

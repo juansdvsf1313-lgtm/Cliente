@@ -22,6 +22,11 @@ local TIER_PATTERNS = {
     { pattern = "master umbral", tier = "Master Umbral" },
     { pattern = "crude umbral", tier = "Crude Umbral" },
     { pattern = "umbral", tier = "Umbral" },
+    -- Moonsilver (15.30). "stellar" va antes para que no lo absorba el corto.
+    { pattern = "stellar moonsilver", tier = "Stellar Moonsilver" },
+    { pattern = "moonsilver", tier = "Moonsilver" },
+    -- Crypt (15.20)
+    { pattern = "crypt", tier = "Crypt" },
     -- Sanguine variants
     { pattern = "grand sanguine", tier = "Grand Sanguine" },
     { pattern = "sanguine", tier = "Sanguine" },
@@ -39,8 +44,9 @@ local TIER_PATTERNS = {
 -- LuaFormatter on
 -- Weapon type keywords
 local WEAPON_KEYWORDS = {
-    sword = {"sword", "blade", "sabre", "dagger", "knife", "slayer", "chopper"},
-    axe = {"axe", "hatchet", "cleaver"},
+    sword = {"sword", "blade", "sabre", "dagger", "knife", "slayer"},
+    -- "chopper" va aqui: los 24 del juego son hachas, ninguno espada.
+    axe = {"axe", "hatchet", "cleaver", "chopper"},
     club = {"club", "hammer", "mace", "staff", "cudgel", "flail", "morningstar", "sceptre"},
     bow = {"bow", "crossbow", "arbalest"},
     throw = {"star", "spear", "javelin", "throwing"},
@@ -555,6 +561,13 @@ end
 
 -- Format float value for display
 function ProficiencyData:formatFloatValue(value, roundFloat, perkType)
+    -- Hay perks sin Value: el misil teledirigido (Type 32) usa Probability y
+    -- Multiplier. Sin esta guarda, math.floor(nil) lanza una excepcion que corta
+    -- displayPerks a media columna, y el arbol se queda a 3 de 7.
+    if type(value) ~= "number" then
+        return ""
+    end
+
     local function isPercentageType(perkType)
         for _, v in ipairs(PercentageTypes) do
             if v == perkType then
@@ -629,6 +642,13 @@ function ProficiencyData:getImageSourceAndClip(perkData)
         return imagePath, pierceData and pierceData.imageOffset or "0 0"
     end
 
+    -- El misil teledirigido tambien es por elemento, pero lo trae en ElementId
+    -- (no en DamageType como el pierce).
+    if perkType == PERK_HOMING_MISSILE then
+        local elementData = PierceElementMask[perkData.ElementId]
+        return imagePath, elementData and elementData.imageOffset or "0 0"
+    end
+
     return imagePath, data.offset or "0 0"
 end
 
@@ -641,6 +661,16 @@ function ProficiencyData:getBonusNameAndTooltip(perkData)
 
     if not data then
         return bonusName, "Empty"
+    end
+
+    -- El misil teledirigido no tiene Value: su texto se arma con Probability,
+    -- el elemento y Multiplier.
+    if perkType == PERK_HOMING_MISSILE then
+        local elementData = PierceElementMask[perkData.ElementId]
+        local elementName = elementData and elementData.name or "Elemental"
+        local chance = (perkData.Probability or 0) * 100
+        local power = (perkData.Multiplier or 0) * 100
+        return bonusName, string.format(data.desc, chance, elementName, power)
     end
 
     if perkType == PERK_SPELL_AUGMENT then

@@ -11,22 +11,66 @@ HotkeyListLabel < UILabel
 MainWindow
   id: hotkeysWindow
   !text: tr('Hotkeys')
-  size: 340 470
+  size: 340 508
 
   @onEnter: modules.game_hotkeys.ok()
   @onEscape: modules.game_hotkeys.cancel()
+
+  Label
+    id: hotkeyProfileLabel
+    !text: tr('Profile') .. ':'
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: parent.top
+
+  ComboBox
+    id: hotkeyProfileCombo
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: prev.bottom
+    margin-top: 2
+    mouse-scroll: false
+    @onOptionChange: modules.game_hotkeys.onProfileChange(self:getCurrentOption().text)
+
+  Button
+    id: newProfileButton
+    width: 100
+    !text: tr('New')
+    anchors.left: parent.left
+    anchors.top: prev.bottom
+    margin-top: 4
+    @onClick: modules.game_hotkeys.newProfile()
+
+  Button
+    id: renameProfileButton
+    width: 100
+    !text: tr('Rename')
+    anchors.left: prev.right
+    anchors.top: prev.top
+    margin-left: 4
+    @onClick: modules.game_hotkeys.renameProfile()
+
+  Button
+    id: deleteProfileButton
+    width: 100
+    !text: tr('Delete')
+    anchors.left: prev.right
+    anchors.top: prev.top
+    margin-left: 4
+    @onClick: modules.game_hotkeys.deleteProfile()
 
   Label
     id: currentHotkeysLabel
     !text: tr('Current hotkeys') .. ':'
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.top: parent.top
+    anchors.top: prev.bottom
+    margin-top: 8
 
   VerticalScrollBar
     id: currentHotkeysScrollBar
     height: 150
-    anchors.top: parent.top
+    anchors.top: prev.bottom
     anchors.right: parent.right
     step: 14
     pixels-scroll: true

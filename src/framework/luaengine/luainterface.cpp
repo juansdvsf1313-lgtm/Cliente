@@ -648,7 +648,23 @@ int LuaInterface::luaErrorHandler(lua_State* L)
     return 1;
 }
 
+// Marco DELIBERADAMENTE vacio: ni objetos con destructor ni try/catch. LuaJIT
+// desenrolla la pila con excepciones de Windows al llamar a lua_error, y si este
+// marco tuviera estado de excepciones el CRT volveria a ejecutar sus destructores
+// (FrameUnwindToEmptyState) -> el std::string del mensaje se liberaba dos veces,
+// el heap quedaba corrompido y el cliente moria en seco segundos despues.
 int LuaInterface::luaCppFunctionCallback(lua_State* L)
+{
+    const int resultado = luaCppFunctionCallbackInterno(L);
+    if (resultado < 0)  // hubo error: el mensaje ya esta en la pila de Lua
+        return lua_error(L);
+    return resultado;
+}
+
+#ifdef _MSC_VER
+__declspec(noinline)
+#endif
+int LuaInterface::luaCppFunctionCallbackInterno(lua_State* L)
 {
     ScopedState scopedState(g_lua, L);
 
@@ -657,6 +673,8 @@ int LuaInterface::luaCppFunctionCallback(lua_State* L)
     assert(funcPtr);
 
     int numRets = 0;
+    bool huboError = false;
+    std::string mensajeError;
 
     // do the call
     try {
@@ -666,29 +684,40 @@ int LuaInterface::luaCppFunctionCallback(lua_State* L)
         assert(numRets == g_lua.stackSize());
     } catch (stdext::exception& e) {
         --g_lua.m_cppCallbackDepth;
-        // cleanup stack
-        while (g_lua.stackSize() > 0)
-            g_lua.pop();
-        numRets = 0;
-        g_lua.pushString(fmt::format("C++ call failed: {}", g_lua.traceback(e.what())));
-        scopedState.restore();
-        return lua_error(L);
+        huboError = true;
+        mensajeError = fmt::format("C++ call failed: {}", g_lua.traceback(e.what()));
     } catch (const std::exception& e) {
         --g_lua.m_cppCallbackDepth;
-        while (g_lua.stackSize() > 0)
-            g_lua.pop();
-        numRets = 0;
-        g_lua.pushString(fmt::format("C++ std::exception: {}", g_lua.traceback(e.what())));
-        scopedState.restore();
-        return lua_error(L);
+        huboError = true;
+        mensajeError = fmt::format("C++ std::exception: {}", g_lua.traceback(e.what()));
     } catch (...) {
         --g_lua.m_cppCallbackDepth;
+        huboError = true;
+        mensajeError = g_lua.traceback("Unknown C++ exception");
+    }
+
+    if (huboError) {
+        // OJO: lua_error de LuaJIT desenrolla la pila con excepciones de Windows.
+        // Llamarlo DENTRO del catch hacia que el CRT volviera a recorrer ese marco
+        // y ejecutara OTRA VEZ los destructores ya ejecutados: el std::string del
+        // mensaje se liberaba dos veces -> heap corrompido y el cliente moria en
+        // seco segundos despues, sin log ni informe de fallo. Hay que salir del
+        // catch primero y lanzar el error desde fuera.
+        numRets = 0;
         while (g_lua.stackSize() > 0)
             g_lua.pop();
-        numRets = 0;
-        g_lua.pushString(g_lua.traceback("Unknown C++ exception"));
+
+        {
+            const std::string mensaje = std::move(mensajeError);
+            g_lua.pushString(mensaje);
+        }
+        // 'mensajeError' queda vacio: su destructor no llegara a ejecutarse porque
+        // lua_error no vuelve, y asi no deja nada reservado sin liberar.
+        mensajeError.clear();
+        mensajeError.shrink_to_fit();
+
         scopedState.restore();
-        return lua_error(L);
+        return -1;  // el que llama (marco limpio) hara el lua_error
     }
 
     return numRets;

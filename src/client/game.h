@@ -343,6 +343,11 @@ public:
     void setCustomOs(const Otc::OperatingSystem_t os) { m_clientCustomOs = os; }
     Otc::OperatingSystem_t getOs();
 
+    // Animacion de arma de los ataques normales (efectos 304-309).
+    // En el cliente oficial es gameWindowShowAttackAnimation.
+    void setShowAttackAnimation(const bool show) { m_showAttackAnimation = show; }
+    bool isShowingAttackAnimation() const { return m_showAttackAnimation; }
+
     bool canPerformGameAction() const;
 
     bool isOnline() { return m_online; }
@@ -507,6 +512,7 @@ private:
 
     bool m_tileThingsLuaCallback{ false };
     bool m_online{ false };
+    bool m_showAttackAnimation{ true };
     bool m_dead{ false };
     bool m_expertPvpMode{ false };
     bool m_connectionFailWarned{ false };

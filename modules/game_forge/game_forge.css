@@ -31,7 +31,8 @@
 .content {
   width: 465px;
   height: 320px;
-  margin-top: 8px;
+  /* medido: el original deja 6 px entre las pestanas y el contenido */
+  margin-top: 6px;
   color: #c0c0c0;
 }
 
@@ -213,6 +214,9 @@
   width: 128px;
 }
 .transfer-button {
+  /* medido bien el 12-sep-2026: la caja de resultado del oficial va de x=349
+     a 476, o sea 128 px, que es el tamano original. Antes la ensanche a 147
+     por medir hasta el marco de la ventana en vez de hasta el borde del boton. */
   height: 65px;
   width: 128px;
   --image-source: "/modules/game_forge/images/bigger-button";
@@ -457,9 +461,13 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: stretch;
-  height: 20px;
-  margin-left: 8px;
-  justify-content: space-between;
+  /* medido: la fila del pie del oficial mide 30 px (es lo que mide su Close) */
+  height: 30px;
+  /* medido: el oficial arranca el pie en x=16 (borde interior), sin margen */
+  margin-left: 0;
+  /* con space-between el boton Close absorbia todo el hueco libre y salia de
+     137 px en vez de los 75 del oficial */
+  justify-content: flex-start;
   gap: 0;
 }
 
@@ -470,7 +478,7 @@
   align-items: stretch;
   justify-content: flex-start;
   gap: 0;
-  height: 20px;
+  height: 30px;
 }
 
 .footer-content img {
@@ -478,12 +486,12 @@
 }
 
 .close-btn {
-  padding: 3px 10px !important;
+  padding: 4px 10px !important;
   margin-left: auto;
 }
 
 .close-btn:pressed {
-  padding: 3px 10px !important;
+  padding: 4px 10px !important;
 }
 
 .result-window {

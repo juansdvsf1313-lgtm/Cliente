@@ -152,7 +152,7 @@ return {
             end, 50)
         end
     },
-    returnDisablesChat                = false,
+    returnDisablesChat                = true,
     smartWalk                         = false,
     autoChaseOverride                 = true,
     talkOnRightClick                  = false,
@@ -521,6 +521,12 @@ return {
         value = false,
         action = function(value, options, controller, panels, extraWidgets)
             g_app.setDrawEffectOnTop(value)
+        end
+    },
+    showAttackAnimation               = {
+        value = true,
+        action = function(value, options, controller, panels, extraWidgets)
+            g_game.setShowAttackAnimation(value)
         end
     },
     floorViewMode                     = {

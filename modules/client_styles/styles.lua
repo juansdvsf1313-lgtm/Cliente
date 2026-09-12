@@ -26,6 +26,8 @@ function init()
     -- 'Improve to 65%' = 75 px de ancho y 8 de alto, que corresponde a
     -- Verdana negrita 8 px (da 76x8).
     g_fonts.importFontWithSize('/fonts/ttf/verdana-bold.ttf', 8)
+    -- Verdana normal a 8: para el boton Close, que en el oficial se ve mas fino
+    g_fonts.importFontWithSize('/fonts/ttf/Verdana.ttf', 8)
 
     g_mouse.loadCursors('/cursors/cursors')
     g_gameConfig.loadFonts()

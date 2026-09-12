@@ -4,7 +4,7 @@
     <window
       *if="not self.showResult and not self.showBonus"
       class="forge-window"
-      style="width: 462px"
+      style="width: 467px"
       title="Exaltation Forge"
       placement="center"
       onescape="self:hide()"
@@ -255,7 +255,7 @@
                   *if="not self.fusion.isConvergence"
                   onhover="self:handleDescription('fusion-improve-chance')"
                 >
-                  <div class="fusion-buttons-text-container">
+                  <div class="fusion-buttons-text-container" style="width: 133px">
                     <span>Success Rate:</span>
                     <span
                       class="fusion-text-chance"
@@ -263,18 +263,21 @@
                       >{{self.fusion.chanceImprovedLabel}}</span
                     >
                   </div>
-                  <div class="fusion-buttons-text-container">
+                  <div class="fusion-buttons-text-container" style="width: 133px">
                     <button
                       class="fusion-buttons-improve"
                       *image-clip="self.fusion.chanceImprovedChecked and {x=0, y=46, width=61, height=23} or {x=0, y=0, width=61, height=23}"
-                      style="width: 136px; font: verdana-bold_8"
+                      style="width: 110px; font: verdana-bold_8"
                       onclick="self.fusion.exaltedCoreImprovements('improve-chance')"
                       *disabled="self.currentExaltedCores <= 0 or self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1"
                     >
                       Improve to 65%
                     </button>
-                    <div class="fusion-text-chance-cost">
-                      <p placement="center-left" style="width: 8px; margin-left: 2px; color: #c0c0c0">1</p>
+                    <div class="fusion-text-chance-cost" style="width: 25px">
+                      <p *if="not (self.currentExaltedCores &lt;= 0 or (self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1))" placement="center-left"
+                        style="width: 8px; margin-left: 2px; color: #c0c0c0">1</p>
+                      <p *if="self.currentExaltedCores &lt;= 0 or (self.fusion.reduceTierLossChecked and self.currentExaltedCores == 1)" placement="center-left"
+                        style="width: 8px; margin-left: 2px; color: #d33c3c">1</p>
                       <img placement="center-right"
                         style="margin-right: 1px"
                         src="/modules/game_forge/images/icon-currency-exaltedcore.png"
@@ -289,7 +292,7 @@
                   *if="not self.fusion.isConvergence"
                   onhover="self:handleDescription('fusion-reduce-loss')"
                 >
-                  <div class="fusion-buttons-text-container">
+                  <div class="fusion-buttons-text-container" style="width: 133px">
                     <span>Tier Loss:</span>
                     <span
                       class="fusion-text-chance"
@@ -297,18 +300,21 @@
                       >{{self.fusion.reduceTierLossLabel}}</span
                     >
                   </div>
-                  <div class="fusion-buttons-text-container">
+                  <div class="fusion-buttons-text-container" style="width: 133px">
                     <button
                       class="fusion-buttons-improve"
                       *image-clip="self.fusion.reduceTierLossChecked and {x=0, y=46, width=61, height=23} or {x=0, y=0, width=61, height=23}"
                       onclick="self.fusion.exaltedCoreImprovements('reduce-loss')"
-                      style="width: 136px; font: verdana-bold_8"
+                      style="width: 110px; font: verdana-bold_8"
                       *disabled="self.currentExaltedCores <= 0 or self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1"
                     >
                       Reduce to 50%
                     </button>
-                    <div class="fusion-text-chance-cost">
-                      <p placement="center-left" style="width: 8px; margin-left: 2px; color: #c0c0c0">1</p>
+                    <div class="fusion-text-chance-cost" style="width: 25px">
+                      <p *if="not (self.currentExaltedCores &lt;= 0 or (self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1))" placement="center-left"
+                        style="width: 8px; margin-left: 2px; color: #c0c0c0">1</p>
+                      <p *if="self.currentExaltedCores &lt;= 0 or (self.fusion.chanceImprovedChecked and self.currentExaltedCores == 1)" placement="center-left"
+                        style="width: 8px; margin-left: 2px; color: #d33c3c">1</p>
                       <img placement="center-right"
                         style="margin-right: 1px"
                         src="/modules/game_forge/images/icon-currency-exaltedcore.png"
@@ -643,11 +649,11 @@
                 />
               </div>
               <div
-                class="transfer-button-container"
+                class="transfer-button-container" style="width: 128px"
                 onhover="self:handleDescription('transfer-forge-action')"
               >
                 <div
-                  class="transfer-button"
+                  class="transfer-button" style="width: 128px"
                   *disabled="self.transfer.canTransfer == false"
                   onclick="self:forgeAction(true)"
                 >
@@ -784,6 +790,9 @@
                 </div>
                 <div style="margin-top: 8px">
                   <p>{{self.conversion.dustToSilverLabel}}</p>
+                  <img placement="center-right" style="margin-right: 34px"
+                    src="/modules/game_forge/images/icon-currency-sliver.png"
+                    width="9" height="9" />
                 </div>
               </div>
             </div>
@@ -831,6 +840,9 @@
                 </div>
                 <div style="margin-top: 8px">
                   <p>{{self.conversion.sliverToCoreLabel}}</p>
+                  <img placement="center-right" style="margin-right: 34px"
+                    src="/modules/game_forge/images/icon-currency-exaltedcore.png"
+                    width="9" height="9" />
                 </div>
               </div>
             </div>
@@ -874,11 +886,14 @@
                   onhover="self:handleDescription('increase-dust-limit-cost')"
                   style="position: relative; height: 80px;"
                 >
-                  <UIItem style="item-id: 37160; height: 65px; width: 65px; position: absolute; left: 8px; bottom: 10px;" />
-                  <UIItem style="item-id: 37160; height: 65px; width: 65px; position: absolute; left: 63px; top: -5px;" />
+                  <!-- position:absolute no lo aplica este motor: las dos casillas se
+                       colocaban seguidas a 65 px y la segunda se salia de la columna.
+                       A 60 px caben las dos dentro de los 157 px utiles. -->
+                  <UIItem style="item-id: 37160; height: 60px; width: 60px" />
+                  <UIItem style="item-id: 37160; height: 60px; width: 60px" />
                 </div>
                 <div style="margin-top: -7px">
-                  <p style="width: 150px">{{self.conversion.dustMaxLabel}}</p>
+                  <p style="width: 102px">{{self.conversion.dustMaxLabel}}</p>
                 </div>
               </div>
             </div>
@@ -889,11 +904,15 @@
           <div class="history-container" id="history">
             <div class="history-list">
               <table class="history-table">
-                <thead style="background-color: #363636; width: 500px">
+                <thead style="width: 500px; height: 14px">
                   <tr>
-                    <th style="width: 145px; font: verdana-bold_11; color: #c0c0c0">Date</th>
-                    <th style="width: 85px; font: verdana-bold_11; color: #c0c0c0">Action</th>
-                    <th style="width: 235px; font: verdana-bold_11; color: #c0c0c0">Details</th>
+                    <th style="width: 148px; height: 14px; padding: 0; background-color: #363636; font: verdana-bold_11; color: #c0c0c0"><span style="margin-left: 3px">Date</span></th>
+                    <td style="width: 1px; height: 14px; padding: 0; margin: 0; background-color: #2b2b2b"></td>
+                    <td style="width: 1px; height: 14px; padding: 0; margin: 0; background-color: #797979"></td>
+                    <th style="padding: 0; width: 93px; height: 14px; background-color: #363636; font: verdana-bold_11; color: #c0c0c0"><span style="margin-left: 3px">Action</span></th>
+                    <td style="width: 1px; height: 14px; padding: 0; margin: 0; background-color: #2b2b2b"></td>
+                    <td style="width: 1px; height: 14px; padding: 0; margin: 0; background-color: #797979"></td>
+                    <th style="padding: 0; width: 218px; height: 14px; background-color: #363636; font: verdana-bold_11; color: #c0c0c0"><span style="margin-left: 3px">Details</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -901,9 +920,13 @@
                     style="height: 30px"
                     *for="local row in (self.history.list or {})"
                   >
-                    <td style="width: 145px">{{row.fecha}}</td>
-                    <td class="history-action" style="width: 85px">{{row.actionType}}</td>
-                    <td style="width: 230px">{{row.description}}</td>
+                    <td style="padding: 0; width: 148px"><span style="margin-left: 3px">{{row.fecha}}</span></td>
+                    <td style="width: 1px; height: 30px; padding: 0; margin: 0; background-color: #2b2b2b"></td>
+                    <td style="width: 1px; height: 30px; padding: 0; margin: 0; background-color: #797979"></td>
+                    <td class="history-action" style="padding: 0; width: 93px"><span style="margin-left: 3px">{{row.actionType}}</span></td>
+                    <td style="width: 1px; height: 30px; padding: 0; margin: 0; background-color: #2b2b2b"></td>
+                    <td style="width: 1px; height: 30px; padding: 0; margin: 0; background-color: #797979"></td>
+                    <td style="padding: 0; width: 218px"><span style="margin-left: 3px; text-wrap: true; width: 213px">{{row.description}}</span></td>
                   </tr>
                 </tbody>
               </table>
@@ -920,7 +943,7 @@
               </button>
               <div class="history-page-label">
                 <span
-                  >{{self.history.currentPage}}/{{self.history.lastPage}}</span
+                  >Page {{self.history.currentPage}}/{{self.history.lastPage}}</span
                 >
               </div>
               <button
@@ -938,17 +961,17 @@
 
       <hr class="separator HorizontalSeparator" />
 
-      <div class="footer">
-        <div class="footer-content">
+      <div class="footer" style="height: 30px">
+        <div class="footer-content" style="height: 30px">
           <div class="base-gold-bg">
-            <p style="margin-left: 4px">{{self.currentGold}}</p>
+            <p style="text-align: right; width: 115px">{{self.currentGold}}</p>
             <img placement="center-right" style="margin-right: 3px" src="/images/game/prey/prey_gold.png" width="10" height="10" />
           </div>
           <div
             class="base-resource-bg base-dust-resource-bg"
-            style="margin-left: 8px"
+            style="width: 133px; margin-left: 5px"
           >
-            <p style="margin-left: 4px">{{self.currentDustAndMaxLabel}}</p>
+            <p style="text-align: right; width: 119px">{{self.currentDustAndMaxLabel}}</p>
             <img placement="center-right"
               src="/modules/game_forge/images/icon-currency-dust.png"
               width="9"
@@ -956,8 +979,8 @@
               style="margin-right: 3px"
             />
           </div>
-          <div class="base-resource-bg" style="margin-left: 8px">
-            <p style="margin-left: 4px">{{self.currentSlivers}}</p>
+          <div class="base-resource-bg" style="margin-left: 5px">
+            <p style="text-align: right; width: 38px">{{self.currentSlivers}}</p>
             <img placement="center-right"
               src="/modules/game_forge/images/icon-currency-sliver.png"
               width="9"
@@ -965,8 +988,8 @@
               style="margin-right: 3px"
             />
           </div>
-          <div class="base-resource-bg" style="margin-left: 8px">
-            <p style="margin-left: 4px">{{self.currentExaltedCores}}</p>
+          <div class="base-resource-bg" style="margin-left: 5px">
+            <p style="text-align: right; width: 38px">{{self.currentExaltedCores}}</p>
             <img placement="center-right"
               src="/modules/game_forge/images/icon-currency-exaltedcore.png"
               width="9"
@@ -975,7 +998,12 @@
             />
           </div>
         </div>
-        <button class="close-btn" style="font: verdana-bold_8" onclick="self:hide()">Close</button>
+        <!-- El boton se estiraba para llenar el hueco del pie (space-between) y el
+             width en linea no lo respeta; metido en un contenedor de ancho fijo si.
+             Medido en el oficial: 75 px de ancho y texto #C0C0C0, no blanco. -->
+        <div style="width: 45px; margin-left: 48px">
+          <button class="close-btn" style="font: Verdana_8; color: #c0c0c0" onclick="self:hide()">Close</button>
+        </div>
       </div>
     </window>
     <window

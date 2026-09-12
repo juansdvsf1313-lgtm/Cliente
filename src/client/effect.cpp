@@ -22,6 +22,8 @@
 
 #include "effect.h"
 
+#include <algorithm> // std::clamp para el patron direccional
+
 #include "animator.h"
 #include "client.h"
 #include "game.h"
@@ -65,11 +67,26 @@ void Effect::draw(const Point& dest, const bool drawThings, LightView* lightView
     const int offsetX = m_position.x - g_map.getCentralPosition().x;
     const int offsetY = m_position.y - g_map.getCentralPosition().y;
 
-    int xPattern = static_cast<unsigned>(offsetX) % getNumPatternX();
-    xPattern = 1 - xPattern - getNumPatternX();
-    if (xPattern < 0) xPattern += getNumPatternX();
+    int xPattern;
+    int yPattern;
 
-    int yPattern = static_cast<unsigned>(offsetY) % getNumPatternY();
+    // Efectos direccionales 3x3 (las animaciones de arma, 304-309): la rejilla
+    // son las 8 direcciones mas el centro, colocadas tal cual -- fila de arriba
+    // al norte, la de abajo al sur, columna izquierda al oeste, derecha al este.
+    // El desplazamiento -1/0/+1 respecto a quien pega va directo a la casilla
+    // 0/1/2. El camino de abajo no sirve aqui: el static_cast<unsigned> de un
+    // negativo lo vuelve enorme y el modulo hace que norte y centro caigan en la
+    // misma casilla, asi que la mitad de las direcciones salian mal.
+    if (getNumPatternX() == 3 && getNumPatternY() == 3) {
+        xPattern = std::clamp(offsetX, -1, 1) + 1;
+        yPattern = std::clamp(offsetY, -1, 1) + 1;
+    } else {
+        xPattern = static_cast<unsigned>(offsetX) % getNumPatternX();
+        xPattern = 1 - xPattern - getNumPatternX();
+        if (xPattern < 0) xPattern += getNumPatternX();
+
+        yPattern = static_cast<unsigned>(offsetY) % getNumPatternY();
+    }
 
     if (g_game.getFeature(Otc::GameMapOldEffectRendering)) {
         xPattern = offsetX % getNumPatternX();

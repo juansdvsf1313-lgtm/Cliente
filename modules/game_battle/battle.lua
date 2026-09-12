@@ -1397,6 +1397,67 @@ function disconnecting(gameEvent)
     return true
 end
 
+-- Ataca a la criatura mas cercana; si ya estas atacando a una, pasa a la
+-- siguiente. Respeta los filtros de la battle list: si escondes jugadores o
+-- amigos, no los tomara como objetivo.
+function attackNextCreature()
+    if not g_game.isOnline() then
+        return
+    end
+
+    local player = g_game.getLocalPlayer()
+    local mapPanel = modules.game_interface.getMapPanel()
+    if not player or not mapPanel then
+        return
+    end
+
+    local instance = BattleListManager:getMainInstance()
+    local posJugador = player:getPosition()
+    if not posJugador then
+        return
+    end
+
+    -- candidatos: lo que se ve en pantalla, pasado por el filtro de la lista
+    local candidatos = {}
+    for _, creature in ipairs(mapPanel:getSpectators()) do
+        local pos = creature:getPosition()
+        local valido = pos and pos.z == posJugador.z and not creature:isLocalPlayer()
+        if valido and instance and instance.doCreatureFitFilters then
+            valido = instance:doCreatureFitFilters(creature)
+        end
+        if valido then
+            local dx, dy = pos.x - posJugador.x, pos.y - posJugador.y
+            table.insert(candidatos, { creature = creature, dist = math.max(math.abs(dx), math.abs(dy)) })
+        end
+    end
+
+    if #candidatos == 0 then
+        return
+    end
+
+    -- mas cercano primero; a igual distancia, orden estable por id
+    table.sort(candidatos, function(a, b)
+        if a.dist ~= b.dist then
+            return a.dist < b.dist
+        end
+        return a.creature:getId() < b.creature:getId()
+    end)
+
+    -- si ya hay objetivo, coger el siguiente de la lista (ciclico)
+    local objetivo = g_game.getAttackingCreature()
+    local siguiente = 1
+    if objetivo then
+        for i, c in ipairs(candidatos) do
+            if c.creature:getId() == objetivo:getId() then
+                siguiente = (i % #candidatos) + 1
+                break
+            end
+        end
+    end
+
+    g_game.attack(candidatos[siguiente].creature)
+end
+
 function init()
     -- Initialize Battle Button Pool
     if not ObjectPool then
@@ -1478,6 +1539,11 @@ function init()
     -- Setup keybind
     Keybind.new("Windows", "Show/hide battle list", "Ctrl+B", "")
     Keybind.bind("Windows", "Show/hide battle list", {{ type = KEY_DOWN, callback = toggle }})
+
+    -- Space ataca al mas cercano y cicla objetivos, solo con el chat apagado
+    -- (con el chat encendido la barra espaciadora tiene que escribir espacios)
+    Keybind.new("Combat", "Attack next creature", { [CHAT_MODE.ON] = "", [CHAT_MODE.OFF] = "Space" }, "")
+    Keybind.bind("Combat", "Attack next creature", {{ type = KEY_DOWN, callback = attackNextCreature }})
 
     -- Setup scrollbar - use default MiniWindow behavior
     local scrollbar = battleWindow:getChildById('miniwindowScrollBar')
@@ -2609,6 +2675,7 @@ function terminate() -- Terminating the Module (unload)
     toggleFilterButton = nil
 
     Keybind.delete("Windows", "Show/hide battle list")
+    Keybind.delete("Combat", "Attack next creature")
 
     disconnect(g_game, {
         onAttackingCreatureChange = onAttack,

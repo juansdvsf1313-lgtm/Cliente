@@ -7,7 +7,7 @@ local CreatureButtonColors = {
         hovered = '#FFFFFF'
     },
     onTargeted = {
-        notHovered = '#FF0000',
+        notHovered = '#C20000',
         hovered = '#FF8888'
     },
     onFollowed = {

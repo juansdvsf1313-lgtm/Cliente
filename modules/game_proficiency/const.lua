@@ -36,10 +36,20 @@ PERK_ATTACK_RANGE = 24
 PERK_MELEE_SKILL_FLAT_DAMAGE = 25
 PERK_SPELL_SKILL_FLAT_DAMAGE = 26
 PERK_HEALING_SKILL_FLAT_DAMAGE = 27
-PERK_ARMOR_PENETRATION = 28
-PERK_PIERCE = 29
-PERK_DAMAGE_VS_FULL_HP = 30
-PERK_DAMAGE_VS_LOW_HP = 31
+-- Estos cuatro estaban rotados respecto al dato del cliente oficial.
+-- Comprobado contra dos armas distintas:
+--   Crypt 2H Sword nivel 2 -> Type 30 = 0.12, y la wiki dice "+12% armor penetration"
+--   Crypt 2H Sword nivel 4 -> Type 28 = 0.10, y la wiki dice "+10% damage contra
+--                             targets above 95% hit points"
+--   Moonsilver 1H Sword nivel 6 -> Type 31 = 0.05 = "+5% Earth pierce"
+--   Moonsilver 1H Sword nivel 7 -> Type 29 = 0.06 = "damage contra targets below 30%"
+PERK_DAMAGE_VS_FULL_HP = 28
+PERK_DAMAGE_VS_LOW_HP = 29
+PERK_ARMOR_PENETRATION = 30
+PERK_PIERCE = 31
+-- 15.30: misil teledirigido elemental. No trae Value; usa Probability,
+-- Multiplier, ElementId y MissileId.
+PERK_HOMING_MISSILE = 32
 
 -- Perk Augment Types
 AUGMENT_NONE = 0
@@ -254,7 +264,10 @@ PerkVisualData = {
     [PERK_ARMOR_PENETRATION]         = {source = "icons-0", offset = "1344 0"},
     [PERK_PIERCE]                    = {source = "icons-weaponmastery-elementalPiercing", offset = "0 0"},
     [PERK_DAMAGE_VS_FULL_HP]         = {source = "icons-0", offset = "1216 0"},
-    [PERK_DAMAGE_VS_LOW_HP]          = {source = "icons-0", offset = "1280 0"}
+    [PERK_DAMAGE_VS_LOW_HP]          = {source = "icons-0", offset = "1280 0"},
+    -- Icono sacado del graphics_resources.rcc del cliente oficial 15.32 y
+    -- reescalado x2, porque el arte oficial va a 32px y este modulo usa 64.
+    [PERK_HOMING_MISSILE]            = {source = "icons-weaponmastery-homingMissile", offset = "0 0"}
 }
 
 -- Perk Text Data (names and descriptions)
@@ -290,7 +303,9 @@ PerkTextData = {
     [PERK_ARMOR_PENETRATION]         = {name = "Armor Penetration", desc = "+%s%% armor penetration"},
     [PERK_PIERCE]                    = {name = "Elemental Pierce", desc = "+%s%% %s pierce"},
     [PERK_DAMAGE_VS_FULL_HP]         = {name = "Damage vs Full HP", desc = "+%s%% damage against targets with full hit points"},
-    [PERK_DAMAGE_VS_LOW_HP]          = {name = "Damage vs Low HP", desc = "+%s%% damage against targets below 30%% hit points"}
+    [PERK_DAMAGE_VS_LOW_HP]          = {name = "Damage vs Low HP", desc = "+%s%% damage against targets below 30%% hit points"},
+    -- Texto tal como lo da la wiki del arma.
+    [PERK_HOMING_MISSILE]            = {name = "Homing Missile", desc = "Offensive spells have a %s%% chance to fire a homing missile that deals %s damage equal to %s%% of your level"}
 }
 
 -- Types that require elemental critical calculation
