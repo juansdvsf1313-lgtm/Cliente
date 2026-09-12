@@ -245,10 +245,13 @@ local function onWalkFinish(player)
         -- Con 0 de ping esos 50 ms son toda la sensacion de tardanza, y encima
         -- se suman a los 10-14 ms que cuesta la pulsacion en Lua.
         --
-        -- Ahora entra por la misma rama inmediata que ya usaba el caso sin
-        -- pre-walk. Si apareciera rubber-banding al cambiar de direccion muy
-        -- rapido, volver a addWalkEvent(nextWalkDir, N) con N de 10 a 20.
-        walk(nextWalkDir)
+        -- Se dejo un retardo MINIMO, no los 50 originales. Sin ninguno, cambiar
+        -- de direccion es instantaneo y caminar en diagonal -que es girar todo
+        -- el rato- se sentia demasiado suelto. Con 15 ms se recupera algo de
+        -- peso sin volver a la tardanza de antes: son un 15% de un paso recto
+        -- de 100 ms, frente al 50% que costaban los 50 ms.
+        local RETARDO_GIRO_MS = 15
+        addWalkEvent(nextWalkDir, RETARDO_GIRO_MS)
     end
 end
 

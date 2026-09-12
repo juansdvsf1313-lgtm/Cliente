@@ -185,10 +185,25 @@ void Tile::drawCreature(const MapPosInfo& mapRect, const Point& dest, const int 
 
     g_drawPool.setDrawOrder(DrawOrder::THIRD);
     for (const auto& creature : m_walkingCreatures) {
-        // already drawn by this point
-        if (creature->getDirection() == Otc::Direction::NorthEast || creature->getDirection() == Otc::Direction::SouthWest)
-            if (creature->getLastStepToPosition() != getPosition())
-                continue;
+        // El caso especial de NorthEast y SouthWest es por ORDEN DE DIBUJADO: en
+        // esas dos diagonales a la criatura la pinta la casilla de ORIGEN, en el
+        // bloque de Tile::draw, para que quede detras de un arbol. Por eso aqui
+        // solo la pinta la de destino, y asi no sale dos veces.
+        //
+        // Para las LUCES eso no sirve: Tile::drawLight no ejecuta aquel bloque,
+        // solo llega hasta aqui. O sea que en NE/SW la luz dependia de UNA sola
+        // casilla, y si esa casilla no estaba en la cache de visibles ese
+        // fotograma, no se emitia y la luz desaparecia. Eso era el parpadeo al
+        // caminar en diagonal.
+        //
+        // En la pasada de luz se emite desde todas las casillas que tengan a la
+        // criatura. Duplicar es inofensivo: las luces se combinan con max(), no
+        // se suman, y addLightSource ya funde las de misma posicion y color.
+        if (flags != Otc::DrawLights) {
+            if (creature->getDirection() == Otc::Direction::NorthEast || creature->getDirection() == Otc::Direction::SouthWest)
+                if (creature->getLastStepToPosition() != getPosition())
+                    continue;
+        }
 
         const auto& cDest = Point(
             dest.x + ((creature->getPosition().x - m_position.x) * g_gameConfig.getSpriteSize() - creature->getDrawElevation()) * g_drawPool.getScaleFactor(),
