@@ -560,7 +560,24 @@ void MapView::onGlobalLightChange(const Light&)
 void MapView::updateLight()
 {
     Light ambientLight = getCameraPosition().z > g_gameConfig.getMapSeaFloor() ? Light() : g_map.getLight();
-    ambientLight.intensity = std::max<uint8_t >(m_minimumAmbientLight * 255, ambientLight.intensity);
+    // Dos limites, los dos medidos contra el cliente oficial de Tibia:
+    //
+    //   kSueloMaximo  (120) - hasta donde llega el deslizador de luz ambiente.
+    //       Es un MINIMO, asi que solo manda cuando el mundo esta mas oscuro:
+    //       de noche (40) y bajo tierra (0). De dia no interviene.
+    //       Ademas nunca llega al blanco: las luces se mezclan con max(), y si
+    //       el ambiente llegara a 255 ninguna podria destacar.
+    //
+    //   kBrilloMaximo (190) - tope absoluto del ambiente.
+    //       Es un MAXIMO, y es lo unico que puede oscurecer el dia: el servidor
+    //       manda 250 (el valor oficial de CipSoft, que no tocamos) y aqui se
+    //       recorta a lo que se ve en el cliente oficial.
+    static constexpr uint8_t kSueloMaximo = 120;
+    static constexpr uint8_t kBrilloMaximo = 190;
+
+    const auto suelo = static_cast<uint8_t>(std::min<float>(m_minimumAmbientLight, 1.0f) * kSueloMaximo);
+    ambientLight.intensity = std::max<uint8_t>(suelo, ambientLight.intensity);
+    ambientLight.intensity = std::min<uint8_t>(ambientLight.intensity, kBrilloMaximo);
     m_lightView->setGlobalLight(ambientLight);
     m_lightView->setEnabled(isDrawingLights());
 }

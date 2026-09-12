@@ -1109,6 +1109,17 @@ std::unordered_map<std::string, std::string> ResourceManager::filesChecksums()
     std::unordered_map<std::string, std::string> ret;
     auto files = listDirectoryFiles("/", true, false, true);
     for (auto& filePath : std::ranges::reverse_view(files)) {
+        // Los sprites de data/things NO los actualiza el updater: updater.php
+        // los excluye a proposito de su lista para no empujar cientos de MB a
+        // cada jugador en cada cambio del cliente (van por su propio manifiesto
+        // HD). Hashearlos aqui eran ~27.000 archivos y ~900 MB leidos en CADA
+        // arranque, el 88% del trabajo, para un resultado que nadie mira.
+        // Seguro de omitir: la unica lista que los incluia (finalFiles, en
+        // updater.lua) se construye y nunca se usa, y ResourceManager::
+        // updateFiles() solo escribe lo descargado, no borra por ausencia.
+        if (filePath.starts_with("/data/things"))
+            continue;
+
         PHYSFS_File* file = PHYSFS_openRead(filePath.c_str());
         if (!file)
             continue;

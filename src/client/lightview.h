@@ -23,6 +23,7 @@
 #pragma once
 
 #include "framework/graphics/coordsbuffer.h"
+#include <cmath>
 #include "framework/luaengine/luaobject.h"
 #include "staticdata.h"
 #include <framework/graphics/declarations.h>
@@ -41,7 +42,10 @@ public:
 
     void setGlobalLight(const Light& light)
     {
-        m_isDark = light.intensity < 250;
+        // Solo el blanco puro (255) apaga la pasada de luz. Con 250, que es el
+        // valor oficial de Tibia en pleno dia, antes se desactivaba el sistema
+        // entero y no brillaba ninguna antorcha ni hechizo.
+        m_isDark = light.intensity < 255;
         m_globalLightColor = Color::from8bit(light.color, light.intensity / static_cast<float>(UINT8_MAX));
     }
 

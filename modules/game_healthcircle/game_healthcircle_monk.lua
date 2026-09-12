@@ -69,7 +69,10 @@ function initMonkWidgets()
     monkSereneCircle = g_ui.createWidget('MonkSereneCircle', mapPanel)
     for i = 1, 5 do
         local slot = g_ui.createWidget('MonkHarmonySlot', mapPanel)
-        slot:setImageSource('/data/images/game/healthcircle/left/default-slot-' .. i .. '-monk')
+        -- El arco se llena de ARRIBA hacia abajo, como en Tibia real. Las
+        -- imagenes van numeradas de abajo (1) arriba (5), asi que el hueco i
+        -- toma la imagen 6-i: el primero en encenderse es el de mas arriba.
+        slot:setImageSource('/data/images/game/healthcircle/left/default-slot-' .. (6 - i) .. '-monk')
         slot:setVisible(false)
         monkHarmonySlots[i] = slot
     end

@@ -316,7 +316,9 @@ return {
     enableLights                      = {
         value = true,
         action = function(value, options, controller, panels, extraWidgets)
-            panels.gameMapPanel:setDrawLights(value and options.ambientLight.value < 100)
+            -- Antes esto apagaba las luces al poner el ambiente en 100. Ya no hace
+            -- falta: el suelo de brillo tiene techo y siempre queda margen.
+            panels.gameMapPanel:setDrawLights(value)
             panels.graphicsEffectsPanel:recursiveGetChildById('ambientLight'):setEnabled(value)
         end
     },
