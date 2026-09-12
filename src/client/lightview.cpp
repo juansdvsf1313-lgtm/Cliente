@@ -87,7 +87,7 @@ void LightView::resetShade(const Point& pos)
     m_lightData.tiles[index] = m_lightData.lights.size();
 }
 
-void LightView::draw(const Rect& dest, const Rect& src)
+void LightView::draw(const Rect& dest, const Rect& src, const PointF& subPixel)
 {
     static std::atomic_bool updatePixel;
 
@@ -109,7 +109,7 @@ void LightView::draw(const Rect& dest, const Rect& src)
             updatePixel.store(false, std::memory_order_relaxed);
         }
 
-        updateCoords(dest, src);
+        updateCoords(dest, src, subPixel);
 
         g_painter->setCompositionMode(CompositionMode::MULTIPLY);
         g_painter->resetTransformMatrix();
@@ -119,8 +119,11 @@ void LightView::draw(const Rect& dest, const Rect& src)
     });
 }
 
-void LightView::updateCoords(const Rect& dest, const Rect& src) {
-    if (m_dest == dest && m_src == src)
+void LightView::updateCoords(const Rect& dest, const Rect& src, const PointF& subPixel) {
+    // El subPixel entra en la comparacion a proposito: si no, con el mismo src
+    // entero se reutilizarian las coordenadas viejas y la luz se quedaria clavada
+    // mientras el mapa se desliza, que es justo lo que se veia como parpadeo.
+    if (m_dest == dest && m_src == src && m_subPixel == subPixel)
         return;
 
     const auto& offset = src.topLeft();
@@ -128,10 +131,11 @@ void LightView::updateCoords(const Rect& dest, const Rect& src) {
 
     m_dest = dest;
     m_src = src;
+    m_subPixel = subPixel;
 
     m_coords.clear();
     m_coords.addRect(RectF(m_dest.left(), m_dest.top(), m_dest.width(), m_dest.height()),
-               RectF(static_cast<float>(offset.x) / m_tileSize, static_cast<float>(offset.y) / m_tileSize,
+               RectF((offset.x + subPixel.x) / m_tileSize, (offset.y + subPixel.y) / m_tileSize,
                      static_cast<float>(size.width()) / m_tileSize, static_cast<float>(size.height()) / m_tileSize));
 }
 

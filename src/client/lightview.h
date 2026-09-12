@@ -35,7 +35,12 @@ public:
     ~LightView() override { m_texture = nullptr; }
 
     void resize(const Size& size, uint16_t tileSize);
-    void draw(const Rect& dest, const Rect& src);
+
+    // subPixel: la misma fraccion de desplazamiento que usa el mapa. Sin ella la
+    // capa de luz se queda quieta hasta cruzar un texel entero y entonces salta,
+    // mientras el mapa se desliza suave. Se ve como la luz temblando encima del
+    // personaje.
+    void draw(const Rect& dest, const Rect& src, const PointF& subPixel = {});
 
     void addLightSource(const Point& pos, const Light& light, float brightness = 1.f);
     void resetShade(const Point& pos);
@@ -72,7 +77,7 @@ private:
         std::vector<TileLight> lights;
     };
 
-    void updateCoords(const Rect& dest, const Rect& src);
+    void updateCoords(const Rect& dest, const Rect& src, const PointF& subPixel);
     void updatePixels();
 
     bool m_isDark{ false };
@@ -84,6 +89,7 @@ private:
     DrawPool* m_pool{ nullptr };
 
     Rect m_dest, m_src;
+    PointF m_subPixel;
     CoordsBuffer m_coords;
     TexturePtr m_texture;
     LightData m_lightData;

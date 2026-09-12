@@ -67,7 +67,8 @@ void UIMap::draw(const DrawPoolType drawPane) {
         g_drawPool.preDraw(drawPane, [this] {
             m_mapView->m_lightView->clear();
             m_mapView->drawLights();
-            m_mapView->m_lightView->draw(m_mapView->m_posInfo.rect, m_mapView->m_posInfo.srcRect);
+            m_mapView->m_lightView->draw(m_mapView->m_posInfo.rect, m_mapView->m_posInfo.srcRect,
+                                         m_mapView->m_posInfo.subPixel);
         });
     } else if (drawPane == DrawPoolType::CREATURE_INFORMATION) {
         // FIXME: disabled multithreading of creature information drawing (instead draw it at the same time as MAP)
