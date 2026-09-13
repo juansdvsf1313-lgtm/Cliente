@@ -181,7 +181,19 @@ bool StreamSoundSource::fillBufferAndQueue(const uint32_t buffer)
             }
         }
 
-        alBufferData(buffer, format, bufferData.data(), bytesRead, m_soundFile->getRate());
+        // alBufferData exige que el tamano sea multiplo del bloque de muestra:
+        // 4 bytes en estereo de 16 bits (2 canales x 2) y 2 en mono. Al llegar al
+        // final del fichero, bytesRead se queda con el resto, que casi nunca cae
+        // justo, y OpenAL responde AL_INVALID_VALUE: "Unable to refill audio
+        // buffer ... Invalid Value". De ahi que fallara con ficheros sueltos y sin
+        // patron aparente -- dependia de si su duracion era multiplo del fragmento.
+        const int bloque = (format == AL_FORMAT_STEREO16) ? 4 : 2;
+        const int bytesAlineados = bytesRead - (bytesRead % bloque);
+        if (bytesAlineados <= 0) {
+            return false;
+        }
+
+        alBufferData(buffer, format, bufferData.data(), bytesAlineados, m_soundFile->getRate());
         ALenum err = alGetError();
         if (err != AL_NO_ERROR)
             g_logger.error("Unable to refill audio buffer for '{}': {}", m_soundFile->getName(), alGetString(err));

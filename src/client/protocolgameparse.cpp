@@ -20,6 +20,7 @@
 * THE SOFTWARE.
 */
 
+#include <charconv>
 #include "animatedtext.h"
 #include "attachedeffect.h"
 #include "attachedeffectmanager.h"
@@ -2038,9 +2039,25 @@ void ProtocolGame::parseAnimatedText(const InputMessagePtr& msg)
 
 void ProtocolGame::parseAnthem(const InputMessagePtr& msg)
 {
+    // Paquete 0x85 del servidor. El primer byte dice de que va y el segundo
+    // campo es el id dentro del soundbank:
+    //
+    //   0 -> ambiente de zona  (sendAmbientSoundEffect, ambience_stream)
+    //   1 -> musica            (sendMusicSoundEffect,   music_template)
+    //
+    // Hasta ahora se leia el id y se tiraba. Es el mismo fallo que tenian los
+    // efectos de sonido: el servidor mandaba bien y el cliente lo descartaba.
+    // Por eso el soundbank traia 91 ambiencias y 25 pistas que no sonaban nunca.
     const uint8_t type = msg->getU8();
-    if (type <= 2) {
-        msg->getU16(); // Anthem id
+    if (type > 2)
+        return;
+
+    const uint16_t id = msg->getU16();
+
+    switch (type) {
+        case 0: g_sounds.playAmbient(id); break;
+        case 1: g_sounds.playMusic(id); break;
+        default: break;   // el 2 no tiene uso conocido; se lee para no desalinear
     }
 }
 
@@ -4076,6 +4093,27 @@ ThingPtr ProtocolGame::getMappedThing(const InputMessagePtr& msg) const
     return nullptr;
 }
 
+namespace
+{
+    // El servidor manda el color del brillo pegado al nombre del shader
+    // ("Outfit - Arma Brillante#94", indice de la paleta de outfit). Asi el
+    // mensaje no cambia de formato: un cliente viejo solo se queda sin ese
+    // shader en vez de desincronizarse.
+    void aplicarShaderConColor(const CreaturePtr& creature, std::string_view texto)
+    {
+        if (const auto almohadilla = texto.rfind('#'); almohadilla != std::string_view::npos) {
+            const auto numero = texto.substr(almohadilla + 1);
+            int color = -1;
+            const auto [fin, error] = std::from_chars(numero.data(), numero.data() + numero.size(), color);
+            if (error == std::errc() && fin == numero.data() + numero.size() && color >= 0 && color < 133) {
+                creature->setShaderColor(static_cast<uint8_t>(color));
+                texto = texto.substr(0, almohadilla);
+            }
+        }
+        creature->setShader(texto);
+    }
+}
+
 CreaturePtr ProtocolGame::getCreature(const InputMessagePtr& msg, int type) const
 {
     if (type == 0) {
@@ -4268,7 +4306,7 @@ CreaturePtr ProtocolGame::getCreature(const InputMessagePtr& msg, int type) cons
             creature->setPassable(!unpass);
             creature->setLight(light);
             creature->setMasterId(masterId);
-            creature->setShader(shader);
+            aplicarShaderConColor(creature, shader);
             creature->clearTemporaryAttachedEffects();
             std::unordered_set<uint16_t> currentAttachedEffectIds;
             for (const auto& attachedEffect : creature->getAttachedEffects()) {
@@ -7215,7 +7253,7 @@ void ProtocolGame::parseCreatureShader(const InputMessagePtr& msg)
         return;
     }
 
-    creature->setShader(shaderName);
+    aplicarShaderConColor(creature, shaderName);
 }
 
 void ProtocolGame::parseMapShader(const InputMessagePtr& msg)

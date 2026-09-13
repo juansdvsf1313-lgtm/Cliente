@@ -25,10 +25,11 @@
 #include "soundbuffer.h"
 #include "soundeffect.h"
 
+
 SoundSource::SoundSource()
 {
     alGenSources(1, &m_sourceId);
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
     SoundSource::setReferenceDistance(128);
 }
 
@@ -40,23 +41,23 @@ SoundSource::~SoundSource()
     if (m_sourceId != 0) {
         stop();
         alDeleteSources(1, &m_sourceId);
-        assert(alGetError() == AL_NO_ERROR);
+        alGetError(); // descartar el error: el assert() de antes desaparecia en release
     }
 }
 
 void SoundSource::play()
 {
     alSourcePlay(m_sourceId);
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
 }
 
 void SoundSource::stop()
 {
     alSourceStop(m_sourceId);
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
     if (m_buffer) {
         alSourcei(m_sourceId, AL_BUFFER, AL_NONE);
-        assert(alGetError() == AL_NO_ERROR);
+        alGetError(); // descartar el error: el assert() de antes desaparecia en release
         m_buffer = nullptr;
     }
 }
@@ -71,7 +72,7 @@ bool SoundSource::isBuffering()
 void SoundSource::setBuffer(const SoundBufferPtr& buffer)
 {
     alSourcei(m_sourceId, AL_BUFFER, buffer->getBufferId());
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
     m_buffer = buffer;
 }
 

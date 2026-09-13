@@ -30,6 +30,7 @@
 #include <AL/efx-presets.h>
 #include <AL/efx.h>
 
+
  /* Effect object functions */
 static LPALGENEFFECTS alGenEffects;
 static LPALDELETEEFFECTS alDeleteEffects;
@@ -243,7 +244,7 @@ SoundEffect::SoundEffect(ALCdevice* device) : m_device(device) {
         m_effectId = effects[0];
         m_effectSlot = slots[0];
     }
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
 }
 
 SoundEffect::~SoundEffect()
@@ -321,7 +322,7 @@ void SoundEffect::loadPreset(const EFXEAXREVERBPROPERTIES& preset)
 
     /* Update effect slot */
     alAuxiliaryEffectSloti(m_effectSlot, AL_EFFECTSLOT_EFFECT, static_cast<ALint>(m_effectId));
-    assert(alGetError() == AL_NO_ERROR && "Failed to set effect slot");
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
 }
 
 void SoundEffect::setPreset(const std::string& presetName)

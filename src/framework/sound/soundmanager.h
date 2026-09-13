@@ -141,6 +141,19 @@ public:
     // reproduce un efecto del soundbank de protocolo 13+ por su id
     SoundSourcePtr playSoundEffect(uint32_t effectId, float fadetime = 0);
 
+    // Ambiente de zona (ambience_stream del soundbank): un bucle de fondo mas
+    // efectos sueltos que salen cada tantos segundos -pajaros, martillos, olas-.
+    // El servidor lo elige al entrar y salir de cada zona. Con id 0 (SILENCE) se
+    // corta lo que hubiera sonando.
+    void playAmbient(uint32_t ambientId);
+    void stopAmbient();
+    uint32_t getCurrentAmbient() const { return m_currentAmbientId; }
+
+    // Musica de fondo (music_template del soundbank).
+    void playMusic(uint32_t musicId);
+    void stopMusic();
+    uint32_t getCurrentMusic() const { return m_currentMusicId; }
+
     // volumen maestro (ganancia del listener de OpenAL), 0.0 - 1.0
     void setMasterGain(float gain);
     float getMasterGain() const { return m_masterGain; }
@@ -184,6 +197,27 @@ private:
 
     std::vector<SoundSourcePtr> m_sources;
     bool m_audioEnabled{ true };
+
+    // --- ambiente de zona y musica -------------------------------------
+    // El bucle se guarda para poder pararlo al cambiar de zona. Los efectos
+    // sueltos no van por eventos del despachador sino por poll(), que ya se
+    // llama cada fotograma: asi no hay que cancelar nada al cambiar de ambiente,
+    // basta con vaciar la lista.
+    struct EfectoPendiente
+    {
+        uint32_t effectId;
+        uint32_t cadaSegundos;
+        ticks_t proximo;      // reloj en el que toca sonar
+    };
+
+    uint32_t m_currentAmbientId{ 0 };
+    SoundSourcePtr m_ambientSource;
+    std::vector<EfectoPendiente> m_ambientPending;
+
+    uint32_t m_currentMusicId{ 0 };
+    SoundSourcePtr m_musicSource;
+
+    void pollAmbient(ticks_t now);
 };
 
 extern SoundManager g_sounds;

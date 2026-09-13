@@ -121,6 +121,11 @@ void SoundManager::poll()
 
     ensureContext();
 
+    // Los efectos sueltos del ambiente de zona van aqui y no por eventos del
+    // despachador: asi al cambiar de zona no hay que cancelar nada, basta con
+    // vaciar la lista en stopAmbient().
+    pollAmbient(now);
+
     for (auto it = m_streamFiles.begin(); it != m_streamFiles.end();) {
         const auto& source = it->first;
         const auto& future = it->second;
@@ -252,6 +257,15 @@ void SoundManager::stopAll()
     for (const auto& it : m_channels) {
         it.second->stop();
     }
+
+    // Sin esto, playAmbient() seguiria creyendo que el ambiente suena y volver a
+    // pedir el mismo id no haria nada: al reconectar te quedarias en silencio en
+    // la misma zona donde antes sonaba.
+    m_ambientSource = nullptr;
+    m_ambientPending.clear();
+    m_currentAmbientId = 0;
+    m_musicSource = nullptr;
+    m_currentMusicId = 0;
 }
 
 SoundSourcePtr SoundManager::createSoundSource(const std::string& name)
@@ -640,4 +654,124 @@ std::string SoundManager::getAudioFileNameById(int32_t audioFileId)
     }
 
     return "";
+}
+
+void SoundManager::stopAmbient()
+{
+    if (m_ambientSource) {
+        m_ambientSource->stop();
+        m_ambientSource = nullptr;
+    }
+    m_ambientPending.clear();
+    m_currentAmbientId = 0;
+}
+
+void SoundManager::playAmbient(const uint32_t ambientId)
+{
+    // Repetir el mismo ambiente no reinicia el bucle: el servidor lo reenvia al
+    // cambiar de dia a noche y al volver a entrar en la zona, y cortarlo para
+    // empezarlo de nuevo se oye como un salto.
+    if (ambientId == m_currentAmbientId)
+        return;
+
+    stopAmbient();
+
+    // 0 es SILENCE, lo que manda el servidor al salir de una zona.
+    if (ambientId == 0)
+        return;
+
+    const auto it = m_clientAmbientEffects.find(ambientId);
+    if (it == m_clientAmbientEffects.end()) {
+        g_logger.traceError("unknown client ambient id {}", ambientId);
+        return;
+    }
+
+    const ClientLocationAmbient& ambient = it->second;
+    m_currentAmbientId = ambientId;
+
+    // El bucle de fondo, por el canal Ambient (2) para que respete su volumen en
+    // las opciones igual que los efectos de tipo 8. Con un segundo de fundido:
+    // entrar en una ciudad con el ambiente a todo volumen de golpe se nota mas
+    // que el propio sonido.
+    if (ambient.loopedAudioFileId != 0) {
+        const std::string& fileName = getAudioFileNameById(ambient.loopedAudioFileId);
+        if (fileName.empty()) {
+            g_logger.traceError("no audio file for ambient loop {}", ambient.loopedAudioFileId);
+        } else if (const auto& channel = getChannel(2)) {
+            m_ambientSource = channel->play(m_clientSoundsDir + fileName, 1.0f);
+            if (m_ambientSource)
+                m_ambientSource->setLooping(true);
+        }
+    }
+
+    // Los efectos sueltos no se disparan ya: se apuntan con su primer turno
+    // repartido al azar dentro de su intervalo, para que al entrar en la zona no
+    // suenen todos a la vez.
+    const ticks_t now = g_clock.millis();
+    for (const auto& [effectId, delaySeconds] : ambient.delayedSoundEffects) {
+        if (effectId == 0 || delaySeconds == 0)
+            continue;
+        m_ambientPending.push_back({
+            effectId, delaySeconds,
+            now + stdext::random_range(1, static_cast<int>(delaySeconds)) * 1000
+        });
+    }
+}
+
+void SoundManager::pollAmbient(const ticks_t now)
+{
+    for (auto& pendiente : m_ambientPending) {
+        if (now < pendiente.proximo)
+            continue;
+
+        playSoundEffect(pendiente.effectId);
+
+        // El siguiente turno se mueve al azar entre el 50% y el 150% del
+        // intervalo. Clavado, un pajaro cada 20 segundos exactos delata que es
+        // un bucle; repartido parece natural.
+        const int base = static_cast<int>(pendiente.cadaSegundos) * 1000;
+        pendiente.proximo = now + stdext::random_range(base / 2, base + base / 2);
+    }
+}
+
+void SoundManager::stopMusic()
+{
+    if (m_musicSource) {
+        m_musicSource->stop();
+        m_musicSource = nullptr;
+    }
+    m_currentMusicId = 0;
+}
+
+void SoundManager::playMusic(const uint32_t musicId)
+{
+    if (musicId == m_currentMusicId)
+        return;
+
+    stopMusic();
+
+    if (musicId == 0)
+        return;
+
+    const auto it = m_clientMusic.find(musicId);
+    if (it == m_clientMusic.end()) {
+        g_logger.traceError("unknown client music id {}", musicId);
+        return;
+    }
+
+    const std::string& fileName = getAudioFileNameById(it->second.audioFileId);
+    if (fileName.empty()) {
+        g_logger.traceError("no audio file for music id {}", musicId);
+        return;
+    }
+
+    m_currentMusicId = musicId;
+
+    // Canal 1 (Music) con tres segundos de fundido: una pista entrando de golpe
+    // encima de la anterior queda fatal.
+    if (const auto& channel = getChannel(1)) {
+        m_musicSource = channel->play(m_clientSoundsDir + fileName, 3.0f);
+        if (m_musicSource)
+            m_musicSource->setLooping(true);
+    }
 }

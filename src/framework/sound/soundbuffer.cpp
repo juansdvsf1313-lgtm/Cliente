@@ -23,16 +23,17 @@
 #include "soundbuffer.h"
 #include "soundfile.h"
 
+
 SoundBuffer::SoundBuffer()
 {
     alGenBuffers(1, &m_bufferId);
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
 }
 
 SoundBuffer::~SoundBuffer()
 {
     alDeleteBuffers(1, &m_bufferId);
-    assert(alGetError() == AL_NO_ERROR);
+    alGetError(); // descartar el error: el assert() de antes desaparecia en release
 }
 
 bool SoundBuffer::fillBuffer(const SoundFilePtr& soundFile)

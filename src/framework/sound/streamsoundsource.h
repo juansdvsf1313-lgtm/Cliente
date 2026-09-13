@@ -28,7 +28,15 @@ class StreamSoundSource final : public SoundSource
 {
     enum
     {
-        STREAM_BUFFER_SIZE = 1024 * 400,
+        // 400 KB eran 2,3 segundos de audio (estereo 16 bits a 44,1 kHz) que
+        // queueBuffers() descodifica DE GOLPE en el hilo principal cada vez que
+        // arranca un sonido. Eso son los micro-parones al sonar efectos nuevos,
+        // y se notaba mas cuando coincidian varios (la llamarada de Duke Krule).
+        //
+        // 96 KB son ~0,55 s, de sobra para que update() vaya rellenando fotograma
+        // a fotograma, y el descodificado inicial cuesta la cuarta parte. Si
+        // apareciera "audio buffer underrun" en el log, subir este numero.
+        STREAM_BUFFER_SIZE = 1024 * 96,
         STREAM_FRAGMENTS = 4,
         STREAM_FRAGMENT_SIZE = STREAM_BUFFER_SIZE / STREAM_FRAGMENTS
     };
