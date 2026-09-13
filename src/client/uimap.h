@@ -38,6 +38,7 @@ public:
     void draw(DrawPoolType drawPane);
 
     void movePixels(int x, int y);
+    void captureHoles();   // diagnostico: ver MapView::captureHoles()
     void followCreature(const CreaturePtr& creature);
     void setCameraPosition(const Position& pos);
     void lockVisibleFloor(int floor);

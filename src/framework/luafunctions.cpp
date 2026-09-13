@@ -459,6 +459,12 @@ void Application::registerLuaFunctions()
 
     g_lua.registerSingletonClass("g_atlas");
     g_lua.bindSingletonFunction("g_atlas", "getStats", &DrawPoolManager::getAtlasStats, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "getUploadStats", &DrawPoolManager::getUploadStats, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "getUploadLimit", &DrawPoolManager::getUploadLimit, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "setUploadLimit", &DrawPoolManager::setUploadLimit, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "resetUploadStats", &DrawPoolManager::resetUploadStats, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "setHoleDebug", &DrawPoolManager::setHoleDebug, &g_drawPool);
+    g_lua.bindSingletonFunction("g_atlas", "isHoleDebug", &DrawPoolManager::isHoleDebug, &g_drawPool);
 
     // Textures
     g_lua.registerSingletonClass("g_textures");
@@ -524,6 +530,7 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_shaders", "setupMountShader", &ShaderManager::setupMountShader, &g_shaders);
     g_lua.bindSingletonFunction("g_shaders", "addMultiTexture", &ShaderManager::addMultiTexture, &g_shaders);
     g_lua.bindSingletonFunction("g_shaders", "getShader", &ShaderManager::getShader, &g_shaders);
+    g_lua.bindSingletonFunction("g_shaders", "setOutfitAddonLayer", &ShaderManager::setOutfitAddonLayer, &g_shaders);
     g_lua.bindClassStaticFunction("g_shaders", "clear", [] {
         g_mainDispatcher.addEvent([] { g_shaders.clear(); });
     });

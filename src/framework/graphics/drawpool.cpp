@@ -420,9 +420,27 @@ void DrawPool::popTransformMatrix()
 // hilo principal dentro del dibujado. Varias juntas alargan el fotograma lo
 // suficiente para notarse: medido, 23 tirones en 30 s con picos de 66 ms.
 static constexpr int UPLOADS_PER_FRAME = 2;
+static std::atomic_int s_uploadLimit{ UPLOADS_PER_FRAME };
 static std::atomic_int s_uploadBudget{ UPLOADS_PER_FRAME };
 
-void DrawPool::resetUploadBudget() { s_uploadBudget.store(UPLOADS_PER_FRAME, std::memory_order_relaxed); }
+// Contadores de diagnostico. Un aplazamiento es una textura que tocaba subir y
+// no cupo en el presupuesto del fotograma: ese objeto NO se pinta ese fotograma.
+// Bajo tierra el mapa se limpia a negro, asi que lo que no se pinta se ve negro.
+static std::atomic_uint64_t s_deferredTotal{ 0 };
+static std::atomic_int s_deferredThisFrame{ 0 };
+static std::atomic_int s_deferredMaxFrame{ 0 };
+static std::atomic_uint64_t s_framesWithDeferred{ 0 };
+
+void DrawPool::resetUploadBudget()
+{
+    const int frame = s_deferredThisFrame.exchange(0, std::memory_order_relaxed);
+    if (frame > 0) {
+        s_framesWithDeferred.fetch_add(1, std::memory_order_relaxed);
+        int max = s_deferredMaxFrame.load(std::memory_order_relaxed);
+        while (frame > max && !s_deferredMaxFrame.compare_exchange_weak(max, frame, std::memory_order_relaxed)) {}
+    }
+    s_uploadBudget.store(s_uploadLimit.load(std::memory_order_relaxed), std::memory_order_relaxed);
+}
 
 bool DrawPool::consumeUploadBudget() {
     int left = s_uploadBudget.load(std::memory_order_relaxed);
@@ -430,8 +448,33 @@ bool DrawPool::consumeUploadBudget() {
         if (s_uploadBudget.compare_exchange_weak(left, left - 1, std::memory_order_relaxed))
             return true;
     }
+    s_deferredTotal.fetch_add(1, std::memory_order_relaxed);
+    s_deferredThisFrame.fetch_add(1, std::memory_order_relaxed);
     return false;
 }
+
+void DrawPool::setUploadLimit(const int limit) { s_uploadLimit.store(std::max(limit, 1), std::memory_order_relaxed); }
+int DrawPool::getUploadLimit() { return s_uploadLimit.load(std::memory_order_relaxed); }
+
+std::string DrawPool::getUploadStats()
+{
+    return fmt::format("limite={} aplazadas={} fotogramas_con_aplazadas={} max_en_un_fotograma={}",
+        s_uploadLimit.load(std::memory_order_relaxed),
+        s_deferredTotal.load(std::memory_order_relaxed),
+        s_framesWithDeferred.load(std::memory_order_relaxed),
+        s_deferredMaxFrame.load(std::memory_order_relaxed));
+}
+
+void DrawPool::resetUploadStats()
+{
+    s_deferredTotal.store(0, std::memory_order_relaxed);
+    s_framesWithDeferred.store(0, std::memory_order_relaxed);
+    s_deferredMaxFrame.store(0, std::memory_order_relaxed);
+}
+
+static std::atomic_bool s_holeDebug{ false };
+void DrawPool::setHoleDebug(const bool enabled) { s_holeDebug.store(enabled, std::memory_order_relaxed); }
+bool DrawPool::isHoleDebug() { return s_holeDebug.load(std::memory_order_relaxed); }
 
 bool DrawPool::PoolState::execute(DrawPool* pool) const {
     g_painter->setColor(color);
@@ -446,7 +489,14 @@ bool DrawPool::PoolState::execute(DrawPool* pool) const {
         // Si toca subirla y ya se agoto el presupuesto del fotograma, se deja para
         // el siguiente: mejor que el objeto tarde un fotograma mas en aparecer que
         // estirar este.
-        if (texture->needsUpload() && !consumeUploadBudget())
+        // El presupuesto solo cuenta las texturas GRANDES. Existe por los atlas de
+        // outfit en HD (1024x2048, 8 MB: tirones de 66 ms si suben varios juntos).
+        // Una baldosa de suelo son 64-128 px: subirla es cuestion de microsegundos, y
+        // aplazarla dejaba el suelo sin pintar ese fotograma. Bajo tierra el mapa se
+        // limpia a negro, asi que eso eran los micro puntos negros de la lava.
+        static constexpr int PIXELES_TEXTURA_GRANDE = 512 * 512;
+        const bool grande = texture->getWidth() * texture->getHeight() > PIXELES_TEXTURA_GRANDE;
+        if (texture->needsUpload() && grande && !consumeUploadBudget())
             return false;
 
         texture->create();

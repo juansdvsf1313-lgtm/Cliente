@@ -117,6 +117,15 @@ public:
     void removeTextureFromAtlas(uint32_t id, bool smooth);
     std::string getAtlasStats() const;
 
+    // Envoltorios del diagnostico de subidas, para poder enlazarlos a Lua como
+    // metodos del singleton (los de DrawPool son estaticos).
+    std::string getUploadStats() const { return DrawPool::getUploadStats(); }
+    int getUploadLimit() const { return DrawPool::getUploadLimit(); }
+    void setUploadLimit(const int limit) const { DrawPool::setUploadLimit(limit); }
+    void resetUploadStats() const { DrawPool::resetUploadStats(); }
+    void setHoleDebug(const bool enabled) const { DrawPool::setHoleDebug(enabled); }
+    bool isHoleDebug() const { return DrawPool::isHoleDebug(); }
+
 private:
     DrawPool* getCurrentPool() const;
 

@@ -106,6 +106,19 @@ public:
     static void resetUploadBudget();
     static bool consumeUploadBudget();
 
+    // Diagnostico del presupuesto: tope ajustable en caliente y contadores de
+    // cuantas subidas se aplazaron.
+    static void setUploadLimit(int limit);
+    static int getUploadLimit();
+    static std::string getUploadStats();
+    static void resetUploadStats();
+
+    // Diagnostico de agujeros: pinta el fondo del mapa en magenta en vez de negro.
+    // Lo que no llega a dibujarse un fotograma se ve magenta y no se confunde con
+    // pixeles negros de verdad dentro de un sprite.
+    static void setHoleDebug(bool enabled);
+    static bool isHoleDebug();
+
     void setScaleFactor(const float scale) { m_scaleFactor = scale; }
     float getScaleFactor() const { return m_scaleFactor; }
     bool isScaled() const { return m_scaleFactor != DEFAULT_DISPLAY_DENSITY; }

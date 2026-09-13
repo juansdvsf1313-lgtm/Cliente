@@ -141,7 +141,29 @@ void MapView::drawFloor()
         const bool alwaysTransparent = m_floorViewMode == Otc::ALWAYS_WITH_TRANSPARENCY && z < m_cachedFirstVisibleFloor && _camera.coveredUp(cameraPosition.z - z);
 
         const auto& map = m_floors[z].cachedVisibleTiles;
-        std::vector<TilePtr> walking_tiles;
+        // Casillas aplazadas porque su vecina noreste tiene una criatura andando.
+        // Cada una guarda SUS flags: antes se pintaban todas con los de la casilla
+        // que vaciaba la cola y, cuando esa era una del margen con luz (lava),
+        // canRender ya le habia quitado DrawThings y las aplazadas se quedaban
+        // sin suelo durante todo el paso (los "puntos negros" de magma).
+        std::vector<std::pair<TilePtr, uint32_t>> walking_tiles;
+
+        const auto pintarAplazadas = [&] {
+            for (auto i = walking_tiles.size(); i-- > 0;) {
+                const auto& [tile, tileFlags] = walking_tiles[i];
+
+                if (alwaysTransparent) {
+                    const bool inRange = tile->getPosition().isInRange(_camera, g_gameConfig.getTileTransparentFloorViewRange(), g_gameConfig.getTileTransparentFloorViewRange(), true);
+                    g_drawPool.setOpacity(inRange ? .16 : .7);
+                }
+
+                tile->draw(m_posInfo, transformPositionTo2D(tile->getPosition()), tileFlags);
+
+                if (alwaysTransparent)
+                    g_drawPool.resetOpacity();
+            }
+            walking_tiles.clear();
+        };
 
         for (const auto& tile : map.tiles) {
             uint32_t tileFlags = flags;
@@ -149,28 +171,17 @@ void MapView::drawFloor()
             if (!m_drawViewportEdge && !tile->canRender(tileFlags, cameraPosition, m_viewport))
                 continue;
 
-            walking_tiles.emplace_back(tile);
+            walking_tiles.emplace_back(tile, tileFlags);
 
             // if this tile is the edge or if upper right tile doesn't have walking creatures
             // -> draw it and all walking_tiles depending on it (if there are any queued up)
-            TilePtr upper_right_tile = g_map.getTile(tile->getPosition().translated(1, -1, 0));
-            if (!upper_right_tile || !upper_right_tile->hasWalkingCreature()) {
-                for (int i = walking_tiles.size() - 1; i >= 0; i--) {
-                    auto const &tile = walking_tiles[i];
-
-                    if (alwaysTransparent) {
-                        const bool inRange = tile->getPosition().isInRange(_camera, g_gameConfig.getTileTransparentFloorViewRange(), g_gameConfig.getTileTransparentFloorViewRange(), true);
-                        g_drawPool.setOpacity(inRange ? .16 : .7);
-                    }
-
-                    tile->draw(m_posInfo, transformPositionTo2D(tile->getPosition()), tileFlags);
-
-                    if (alwaysTransparent)
-                        g_drawPool.resetOpacity();
-                }
-                walking_tiles.clear();
-            }
+            const auto& upper_right_tile = g_map.getTile(tile->getPosition().translated(1, -1, 0));
+            if (!upper_right_tile || !upper_right_tile->hasWalkingCreature())
+                pintarAplazadas();
         }
+
+        // Lo que quede aplazado al acabar la lista se pintaba nunca.
+        pintarAplazadas();
 
         for (const auto& missile : g_map.getFloorMissiles(z))
             missile->draw(transformPositionTo2D(missile->getPosition()), true);
@@ -851,6 +862,108 @@ void MapView::move(const int32_t x, const int32_t y)
         requestUpdateVisibleTiles();
 
     onCameraMove(m_moveOffset);
+}
+
+// --- Diagnostico de agujeros ------------------------------------------------
+// Con Ctrl+Shift+J el analizador pide una rafaga: durante los siguientes
+// fotogramas se lee el framebuffer del mapa RECIEN PINTADO, se buscan los pixeles
+// que siguen siendo del color de fondo (magenta con el fondo de diagnostico) y se
+// escribe, para cada casilla afectada, cuantos pixeles son, que caja ocupan dentro
+// de la casilla y que objetos hay en ella. No presupone la causa: dice donde y
+// sobre que esta el agujero, que es lo que faltaba.
+#include <fstream>
+#include <map>
+#include "framework/graphics/graphics.h"
+#include "framework/core/resourcemanager.h"
+#include "framework/core/clock.h"
+
+void MapView::captureHoles()
+{
+    if (m_holeCaptureFrames <= 0)
+        return;
+    --m_holeCaptureFrames;
+    const bool ultimo = m_holeCaptureFrames == 0;
+
+    // Como accion de dibujo: corre en el hilo de render, con el framebuffer del
+    // mapa aun enlazado y despues de todos los objetos del fotograma.
+    g_drawPool.addAction([this, tileSize = static_cast<int>(m_tileSize), size = m_rectDimension.size(), camera = m_posInfo.camera, src = m_posInfo.srcRect, ultimo] {
+        const int w = size.width(), h = size.height();
+        if (w <= 0 || h <= 0 || tileSize <= 0)
+            return;
+
+        // Solo cuenta lo que se MUESTRA: el framebuffer lleva un anillo de casillas
+        // de margen (drawDimension = visible + 3) que nunca llega a pantalla, y ese
+        // anillo esta sin pintar por diseño. Contarlo era ruido.
+        const auto visible = [&](const int x, const int y) {
+            return x >= src.left() && x <= src.right() && y >= src.top() && y <= src.bottom();
+        };
+
+        std::vector<uint8_t> px(static_cast<size_t>(w) * h * 4);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+
+        const bool magenta = DrawPool::isHoleDebug();
+
+        struct Celda { uint32_t n = 0; int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1; };
+        std::map<std::pair<int, int>, Celda> celdas;
+        uint64_t total = 0;
+
+        for (int y = 0; y < h; ++y) {
+            const int fy = h - 1 - y;   // GL entrega las filas de abajo arriba
+            const uint8_t* fila = px.data() + static_cast<size_t>(y) * w * 4;
+            for (int x = 0; x < w; ++x) {
+                const uint8_t* p = fila + static_cast<size_t>(x) * 4;
+                const bool hueco = magenta ? (p[0] == 255 && p[1] == 0 && p[2] == 255)
+                                           : (p[0] == 0 && p[1] == 0 && p[2] == 0);
+                if (!hueco || !visible(x, fy))
+                    continue;
+                ++total;
+                auto& c = celdas[{ x / tileSize, fy / tileSize }];
+                ++c.n;
+                c.x0 = std::min(c.x0, x % tileSize); c.y0 = std::min(c.y0, fy % tileSize);
+                c.x1 = std::max(c.x1, x % tileSize); c.y1 = std::max(c.y1, fy % tileSize);
+            }
+        }
+
+        std::ofstream out(g_resources.getWriteDir() + "/agujeros_captura.txt", std::ios::app);
+        if (total == 0) {
+            if (ultimo)
+                out << "(rafaga terminada: ningun fotograma con pixeles de fondo a la vista)\n\n";
+            return;
+        }
+
+        out << "=== fotograma " << g_clock.millis() << " ms  framebuffer " << w << "x" << h
+            << "  tileSize " << tileSize << "  camara " << camera.x << "," << camera.y << "," << static_cast<int>(camera.z)
+            << "  visible " << src.left() << "," << src.top() << " - " << src.right() << "," << src.bottom()
+            << "  fondo " << (magenta ? "magenta" : "negro") << " ===\n";
+        out << "pixeles de fondo VISIBLES: " << total << " en " << celdas.size() << " casillas\n";
+
+        int listadas = 0;
+        for (const auto& [celda, c] : celdas) {
+            if (++listadas > 40) { out << "  ...\n"; break; }
+            const bool entera = c.n >= static_cast<uint32_t>(tileSize) * tileSize;
+            out << "  celda " << celda.first << "," << celda.second << ": " << c.n << " px"
+                << "  caja " << c.x0 << "," << c.y0 << " - " << c.x1 << "," << c.y1
+                << (entera ? "  (CASILLA ENTERA)" : "  (parcial)") << "\n";
+
+            for (int z = m_floorMax; z >= m_floorMin; --z) {
+                for (const auto& tile : m_floors[z].cachedVisibleTiles.tiles) {
+                    const auto& d = transformPositionTo2D(tile->getPosition());
+                    if (d.x / tileSize != celda.first || d.y / tileSize != celda.second)
+                        continue;
+                    const auto& pos = tile->getPosition();
+                    out << "     piso " << static_cast<int>(pos.z) << "  " << pos.x << "," << pos.y << ":";
+                    for (const auto& thing : tile->getThings()) {
+                        out << " " << thing->getId();
+                        if (thing->isGround()) out << "(suelo)";
+                        else if (thing->isGroundBorder()) out << "(borde)";
+                        else if (thing->isCreature()) out << "(criatura)";
+                    }
+                    out << "\n";
+                }
+            }
+        }
+        out << "\n";
+    });
 }
 
 Rect MapView::calcFramebufferSource(const Size& destSize)

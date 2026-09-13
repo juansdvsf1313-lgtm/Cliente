@@ -56,10 +56,17 @@ void UIMap::draw(const DrawPoolType drawPane) {
     if (drawPane == DrawPoolType::MAP) {
         g_drawPool.preDraw(drawPane, [this] {
             m_mapView->drawFloor();
+            // Diagnostico de agujeros: si se pidio, encola la lectura del
+            // framebuffer DESPUES de todos los objetos de este fotograma.
+            m_mapView->captureHoles();
         }, [this] {
             m_mapView->registerEvents();
         }, m_mapView->m_posInfo.rect, m_mapView->m_posInfo.srcRect,
-           m_mapView->getCameraPosition().z == g_gameConfig.getMapSeaFloor() ? Color(0xFFA54C27U) : Color::black,
+           // Con el diagnostico de agujeros el fondo va en magenta: lo que un
+           // fotograma no llega a pintarse se ve magenta en vez de negro, y asi no
+           // se confunde con pixeles negros de verdad dentro de un sprite.
+           DrawPool::isHoleDebug() ? Color(0xFFFF00FFU)
+               : m_mapView->getCameraPosition().z == g_gameConfig.getMapSeaFloor() ? Color(0xFFA54C27U) : Color::black,
            m_mapView->m_posInfo.subPixel);
 
         g_drawPool.preDraw(DrawPoolType::CREATURE_INFORMATION, [] {});
@@ -103,6 +110,8 @@ void UIMap::updateMapRect() {
 // ----------------- moved from header: bodies that access m_mapView -----------------
 
 void UIMap::movePixels(int x, int y) { m_mapView->move(x, y); }
+
+void UIMap::captureHoles() { m_mapView->requestHoleCapture(); }
 
 void UIMap::followCreature(const CreaturePtr& creature) { m_mapView->followCreature(creature); }
 

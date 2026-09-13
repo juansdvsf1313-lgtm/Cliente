@@ -204,6 +204,54 @@ public:
     // encargarlas todas al abrirse y que esten listas antes de llegar a ellas.
     void preload();
 
+    // Diagnostico: veces que draw() no pinto un objeto por no tener textura lista
+    // (ni la fase pedida ni la 0). Bajo tierra eso deja ver el fondo negro.
+    static inline std::atomic_uint64_t s_skipTotal{ 0 };
+    static inline std::atomic_uint64_t s_skipGround{ 0 };
+    static inline std::atomic_uint32_t s_skipLastId{ 0 };
+    static inline std::atomic_bool s_skipLastGround{ false };
+
+    // Solo en el hilo que esta componiendo un suelo al momento: si otro hilo esta
+    // descomprimiendo la hoja de sprites, se espera a que acabe en vez de abortar
+    // la textura (que dejaria el suelo sin pintar y con el agujero negro).
+    static inline thread_local bool s_esperarHojas{ false };
+
+    // Solo en el hilo de la pasada de luz: getTexture() consulta y no compone.
+    static inline thread_local bool s_soloLectura{ false };
+    // Motivo cuando un suelo no consigue textura al momento.
+    static inline std::atomic_uint64_t s_sueloObjetoOcupado{ 0 };     // otro hilo lo tenia cogido
+    static inline std::atomic_uint64_t s_sueloComposicionVacia{ 0 };  // se compuso y salio vacio
+
+    // draw() tenia textura pero no rectangulo para ese patron: tampoco se pinta.
+    static inline std::atomic_uint64_t s_skipSinRect{ 0 };
+
+    // Autocomprobacion de suelos completos: texturas compuestas con pixeles
+    // transparentes dentro de un fotograma (agujero horneado), y volcados a PNG.
+    static inline std::atomic_uint64_t s_sueloHuecoTexturas{ 0 };
+    static inline std::atomic_uint64_t s_sueloHuecoPixeles{ 0 };
+    static inline std::atomic_uint32_t s_sueloHuecoUltimoId{ 0 };
+    static inline std::atomic_uint32_t s_sueloHuecoVolcados{ 0 };
+    static inline std::atomic_uint32_t s_lavaVolcadas{ 0 };
+
+    static std::string getSkipStats()
+    {
+        return "sin_textura=" + std::to_string(s_skipTotal.load(std::memory_order_relaxed)) +
+            " de_suelo=" + std::to_string(s_skipGround.load(std::memory_order_relaxed)) +
+            " suelo_ocupado=" + std::to_string(s_sueloObjetoOcupado.load(std::memory_order_relaxed)) +
+            " suelo_vacio=" + std::to_string(s_sueloComposicionVacia.load(std::memory_order_relaxed)) +
+            " sin_rect=" + std::to_string(s_skipSinRect.load(std::memory_order_relaxed)) +
+            " suelo_hueco_tex=" + std::to_string(s_sueloHuecoTexturas.load(std::memory_order_relaxed)) +
+            " suelo_hueco_px=" + std::to_string(s_sueloHuecoPixeles.load(std::memory_order_relaxed)) +
+            " suelo_hueco_id=" + std::to_string(s_sueloHuecoUltimoId.load(std::memory_order_relaxed)) +
+            " ultimo_id=" + std::to_string(s_skipLastId.load(std::memory_order_relaxed)) +
+            " ultimo_era_suelo=" + (s_skipLastGround.load(std::memory_order_relaxed) ? "si" : "no");
+    }
+    static void resetSkipStats()
+    {
+        s_skipTotal.store(0, std::memory_order_relaxed);
+        s_skipGround.store(0, std::memory_order_relaxed);
+    }
+
     std::string getName() { return m_name; }
     std::string getDescription() { return m_description; }
 

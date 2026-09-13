@@ -31,6 +31,7 @@
 #include "spritemanager.h"
 #include "framework/core/asyncdispatcher.h"
 #include "framework/core/clock.h"
+#include "framework/stdext/time.h"
 #include "framework/core/filestream.h"
 #include "framework/graphics/drawpoolmanager.h"
 #include "framework/graphics/image.h"
@@ -787,6 +788,8 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
     // this line fixes a bug that makes them disappear while moving
     int animationFrameId = animationPhase % m_animationPhases;
 
+    // Con drawThings == false es la pasada de luz: solo consulta, no compone.
+    s_soloLectura = !drawThings;
     auto texture = getTexture(animationFrameId);
 
     // Respaldo: si la fase pedida aun se esta construyendo, se dibuja la fase 0.
@@ -802,8 +805,20 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
     // hueco, y en cuanto la fase termina de construirse se usa la buena.
     if (!texture && animationFrameId != 0)
         texture = getTexture(0);
+    s_soloLectura = false;
 
     if (!texture) {
+        // Diagnostico: este objeto se queda sin pintar este fotograma. Solo cuenta
+        // la pasada del mapa; la de luz ahora no compone y "fallaria" a proposito.
+        if (drawThings) {
+            s_skipTotal.fetch_add(1, std::memory_order_relaxed);
+            const bool esSuelo = isGround();
+            if (esSuelo)
+                s_skipGround.fetch_add(1, std::memory_order_relaxed);
+            s_skipLastId.store(m_id, std::memory_order_relaxed);
+            s_skipLastGround.store(esSuelo, std::memory_order_relaxed);
+        }
+
         // Reset any pending onlyOnce state to prevent stale opacity/shader
         // from affecting subsequent draws when texture is still loading
         g_drawPool.resetOnlyOnceParameters();
@@ -818,6 +833,9 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
 
     const uint32_t frameIndex = getTextureIndex(layer, xPattern, yPattern, zPattern);
     if (frameIndex >= textureData.pos.size()) {
+        // Diagnostico: segunda salida sin pintar, que el contador de arriba no veia.
+        if (drawThings)
+            s_skipSinRect.fetch_add(1, std::memory_order_relaxed);
         g_drawPool.resetOnlyOnceParameters();
         return;
     }
@@ -856,6 +874,12 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
     if (textureData.source)
         return textureData.source;
 
+    // La pasada de LUZ solo consulta: si la textura no esta, ni la compone ni se
+    // queda con el objeto. Componer desde dos hilos a la vez (mapa y luz) era lo
+    // que dejaba el suelo "ocupado" justo cuando el mapa lo necesitaba.
+    if (s_soloLectura)
+        return m_textureNull;
+
     bool expected = false;
     if (m_loading.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
         bool async = g_app.isLoadingAsyncTexture();
@@ -872,9 +896,27 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
             && m_category != ThingCategoryCreature)
             async = false;
 
+        // Los SUELOS tampoco van en segundo plano. Mientras una textura se construye
+        // draw() no pinta nada, y bajo tierra el mapa se limpia a negro: un suelo sin
+        // textura todavia es un agujero negro en el piso. Medido con el fondo en
+        // magenta, por magma: 7.865 suelos sin pintar en un minuto, huecos de hasta un
+        // segundo en HD (hojas de 768 que descomprimir, y los atlas de criatura de
+        // 8 MB delante en la cola cuando hay summons). Un suelo es una baldosa, no un
+        // atlas: componerla al momento cuesta mucho menos que el agujero.
+        //
+        // En este camino se ESPERA a la hoja de sprites si otro hilo la esta
+        // descomprimiendo (ver loadTexture); abortar volveria a dejar el agujero.
+        const bool esSuelo = m_category == ThingCategoryItem && (isGround() || isGroundBorder());
+        if (esSuelo)
+            async = false;
+
         if (!async) {
+            s_esperarHojas = esSuelo;
             loadTexture(animationPhase);
+            s_esperarHojas = false;
             m_loading.store(false, std::memory_order_release);
+            if (esSuelo && !textureData.source)
+                s_sueloComposicionVacia.fetch_add(1, std::memory_order_relaxed);
             return textureData.source;
         }
 
@@ -886,6 +928,14 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
 
         g_asyncDispatcher->detach_task(std::move(action));
     }
+
+    // Si otro hilo tiene cogido este suelo es porque lo esta componiendo ahora
+    // mismo (solo la pasada del mapa compone; la de luz solo consulta). Aqui NO se
+    // espera: dormir el hilo que recoge el mapa era un micro tiron medible (92
+    // esperas por minuto en magma). El suelo sale en el siguiente fotograma, que
+    // ya lo encontrara hecho.
+    if (m_category == ThingCategoryItem && (isGround() || isGroundBorder()))
+        s_sueloObjetoOcupado.fetch_add(1, std::memory_order_relaxed);
 
     return m_textureNull;
 }
@@ -950,7 +1000,17 @@ void ThingType::loadTexture(const int animationPhase)
                             const uint32_t spriteIndex = getSpriteIndex(-1, -1, spriteMask ? 1 : l, x, y, z, animationPhase);
                             auto spriteId = m_spritesIndex[spriteIndex];
                             bool isLoading = false;
-                            const auto& spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+                            auto spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+
+                            // Otro hilo esta descomprimiendo esta hoja. Lo normal es abortar y
+                            // reintentar en otro fotograma, pero componiendo un suelo al momento eso
+                            // lo dejaria sin pintar: se espera a la hoja, como mucho 8 ms (mas
+                            // seria un tiron; si no llega, sale en el siguiente fotograma).
+                            for (int espera = 0; isLoading && s_esperarHojas && espera < 8; ++espera) {
+                                stdext::millisleep(1);
+                                isLoading = false;
+                                spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+                            }
 
                             if (isLoading)
                                 return;
@@ -979,7 +1039,17 @@ void ThingType::loadTexture(const int animationPhase)
                                     const uint32_t spriteIndex = getSpriteIndex(w, h, spriteMask ? 1 : l, x, y, z, animationPhase);
                                     auto spriteId = m_spritesIndex[spriteIndex];
                                     bool isLoading = false;
-                                    const auto& spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+                                    auto spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+
+                                    // Otro hilo esta descomprimiendo esta hoja. Lo normal es abortar y
+                                    // reintentar en otro fotograma, pero componiendo un suelo al momento eso
+                                    // lo dejaria sin pintar: se espera a la hoja, como mucho 8 ms (mas
+                            // seria un tiron; si no llega, sale en el siguiente fotograma).
+                                    for (int espera = 0; isLoading && s_esperarHojas && espera < 8; ++espera) {
+                                        stdext::millisleep(1);
+                                        isLoading = false;
+                                        spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
+                                    }
 
                                     if (isLoading)
                                         return;
@@ -1044,6 +1114,52 @@ void ThingType::loadTexture(const int animationPhase)
     // Y no se usan: los sprites se dibujan AMPLIADOS (64 px a ~96), asi que la GPU
     // siempre muestrea el nivel 0. Solo se notarian en una vista previa muy
     // reducida, y ahi GL_LINEAR basta.
+    if (m_category == ThingCategoryItem && !useCustomImage) {
+        // Volcado de referencia de la lava de magma (21478-21499): la textura que se
+        // pinta DE VERDAD, no lo que hay en la hoja. Solo las primeras. Bajo try
+        // porque savePNG lanza si no puede escribir, y esto corre en el hilo que
+        // compone: una excepcion ahi tumba el cliente.
+        if (m_id >= 21478 && m_id <= 21499 && animationPhase < 2
+            && s_lavaVolcadas.fetch_add(1, std::memory_order_relaxed) < 4) {
+            try {
+                fullImage->savePNG("lava_" + std::to_string(m_id) + "_fase" + std::to_string(animationPhase) + ".png");
+            } catch (...) {}
+        }
+
+        // Autocomprobacion de SUELOS COMPLETOS. Dentro de cada fotograma de la
+        // textura compuesta no puede haber ni un pixel transparente: si lo hay, al
+        // pintarse se ve el fondo a traves, y bajo tierra el fondo es negro. Se
+        // cuenta, y las primeras defectuosas se vuelcan a PNG para poder mirarlas.
+        if (isFullGround()) {
+            const int fw = m_size.width() * g_gameConfig.getSpriteSize();
+            const int fh = m_size.height() * g_gameConfig.getSpriteSize();
+            const int cols = std::max<int>(1, textureSize.width() / m_size.width());
+            const int tw = fullImage->getWidth();
+            const uint8_t* px = fullImage->getPixelData();
+
+            uint32_t huecos = 0;
+            for (int f = 0; f < indexSize; ++f) {
+                const int ox = (f % cols) * fw;
+                const int oy = (f / cols) * fh;
+                for (int y = 0; y < fh; ++y)
+                    for (int x = 0; x < fw; ++x)
+                        if (px[(static_cast<size_t>(oy + y) * tw + ox + x) * 4 + 3] == 0)
+                            ++huecos;
+            }
+
+            if (huecos > 0) {
+                s_sueloHuecoTexturas.fetch_add(1, std::memory_order_relaxed);
+                s_sueloHuecoPixeles.fetch_add(huecos, std::memory_order_relaxed);
+                s_sueloHuecoUltimoId.store(m_id, std::memory_order_relaxed);
+                if (s_sueloHuecoVolcados.fetch_add(1, std::memory_order_relaxed) < 3) {
+                    try {
+                        fullImage->savePNG("hueco_suelo_" + std::to_string(m_id) + "_fase" + std::to_string(animationPhase) + ".png");
+                    } catch (...) {}
+                }
+            }
+        }
+    }
+
     textureData.source = std::make_shared<Texture>(fullImage, false, false);
     textureData.source->allowAtlasCache();
 }

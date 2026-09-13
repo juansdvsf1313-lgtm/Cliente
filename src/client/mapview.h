@@ -190,6 +190,12 @@ private:
     void requestUpdateVisibleTiles() { m_updateVisibleTiles = true; }
     void requestUpdateMapPosInfo() { m_updateMapPosInfo = true; }
 
+    // Diagnostico de agujeros: durante los siguientes ~90 fotogramas se lee el
+    // framebuffer del mapa recien pintado y se apunta que casilla y que objetos
+    // hay bajo cada pixel que sigue siendo del color de fondo. Ver captureHoles().
+    void requestHoleCapture() { m_holeCaptureFrames = 90; }
+    void captureHoles();
+
     void registerEvents();
 
     uint8_t calcFirstVisibleFloor(bool checkLimitsFloorsView) const;
@@ -257,6 +263,7 @@ private:
     bool m_limitVisibleDimension{ true };
     bool m_updateVisibleTiles{ true };
     bool m_updateMapPosInfo{ true };
+    int m_holeCaptureFrames{ 0 };   // fotogramas que quedan de la rafaga de captura
     bool m_resetCoveredCache{ true };
     bool m_shaderSwitchDone{ true };
     bool m_drawHealthBars{ true };

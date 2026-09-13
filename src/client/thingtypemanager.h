@@ -79,6 +79,11 @@ public:
 
     const ThingTypeList& getThingTypes(ThingCategory category);
 
+    // Envoltorios del diagnostico de objetos sin pintar, para enlazarlos a Lua
+    // como metodos del singleton (los de ThingType son estaticos).
+    std::string getSkipStats() const { return ThingType::getSkipStats(); }
+    void resetSkipStats() const { ThingType::resetSkipStats(); }
+
     uint32_t getDatSignature() { return m_datSignature; }
     uint16_t getContentRevision() { return m_contentRevision; }
     const std::string& getAssetIdentifier() { return m_assetIdentifier; }

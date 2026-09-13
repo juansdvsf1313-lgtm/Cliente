@@ -83,6 +83,8 @@ void Client::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_things", "getContentRevision", &ThingTypeManager::getContentRevision, &g_things);
     g_lua.bindSingletonFunction("g_things", "getThingType", &ThingTypeManager::getThingType, &g_things);
     g_lua.bindSingletonFunction("g_things", "getThingTypes", &ThingTypeManager::getThingTypes, &g_things);
+    g_lua.bindSingletonFunction("g_things", "getSkipStats", &ThingTypeManager::getSkipStats, &g_things);
+    g_lua.bindSingletonFunction("g_things", "resetSkipStats", &ThingTypeManager::resetSkipStats, &g_things);
     g_lua.bindSingletonFunction("g_things", "findThingTypeByAttr", &ThingTypeManager::findThingTypeByAttr, &g_things);
     g_lua.bindSingletonFunction("g_things", "getProficiencyThings", &ThingTypeManager::getProficiencyThings, &g_things);
     g_lua.bindSingletonFunction("g_things", "getCyclopediaItemName", &ThingTypeManager::getCyclopediaItemName, &g_things);
@@ -676,6 +678,8 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<Creature>("canBeSeen", &Creature::canBeSeen);
     g_lua.bindClassMemberFunction<Creature>("jump", &Creature::jump);
     g_lua.bindClassMemberFunction<Creature>("setMountShader", &Creature::setMountShader);
+    g_lua.bindClassMemberFunction<Creature>("setShaderColor", &Creature::setShaderColor);
+    g_lua.bindClassMemberFunction<Creature>("getShaderColor", &Creature::getShaderColor);
     // bind via lambdas to avoid ambiguous member-function pointer template resolution
     g_lua.registerClassMemberFunction(stdext::demangle_class<Creature>(), "setNameShader",
         luabinder::bind_fun([](const std::shared_ptr<Creature>& obj, const std::string& name) { obj->setNameShader(name); }));
@@ -1207,6 +1211,7 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<UIMap>("isKeepAspectRatioEnabled", &UIMap::isKeepAspectRatioEnabled);
     g_lua.bindClassMemberFunction<UIMap>("isInRange", &UIMap::isInRange);
     g_lua.bindClassMemberFunction<UIMap>("getVisibleDimension", &UIMap::getVisibleDimension);
+    g_lua.bindClassMemberFunction<UIMap>("captureHoles", &UIMap::captureHoles);
     g_lua.bindClassMemberFunction<UIMap>("getFloorViewMode", &UIMap::getFloorViewMode);
     g_lua.bindClassMemberFunction<UIMap>("getFollowingCreature", &UIMap::getFollowingCreature);
     g_lua.bindClassMemberFunction<UIMap>("getCameraPosition", &UIMap::getCameraPosition);
