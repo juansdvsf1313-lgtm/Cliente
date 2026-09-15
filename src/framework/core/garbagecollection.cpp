@@ -26,11 +26,15 @@
 #include "client/gameconfig.h"
 #include "client/thingtype.h"
 #include "client/thingtypemanager.h"
+#include "client/spriteappearances.h"
 #include "framework/graphics/declarations.h"
 #include "framework/graphics/texture.h"
 #include "framework/graphics/texturemanager.h"
 #include "framework/graphics/animatedtexture.h"
 #include "framework/luaengine/luainterface.h"
+#include "client/game.h"
+#include "client/localplayer.h"
+#include <framework/util/stats.h>
 
 constexpr uint32_t LUA_TIME = 15 * 60 * 1000; // 15min
 constexpr uint32_t TEXTURE_TIME = 30 * 60 * 1000; // 30min
@@ -38,18 +42,34 @@ constexpr uint32_t THINGTYPE_TIME = 2 * 1000; // 2seg
 
 Timer lua_timer, texture_timer, drawpool_timer, thingtype_timer;
 
-void GarbageCollection::poll() {
-    if (canCheck(thingtype_timer, THINGTYPE_TIME))
-        thingType();
+// Las recolecciones que paran el hilo (Lua completo x2, borrar texturas) solo con
+// el jugador quieto: parado no hay scroll y un paron de decenas de ms no se ve;
+// andando es un tiron. Con tope de 5 min de espera por si nunca para.
+static bool momentoTranquilo(Timer& timer, const uint32_t delay) {
+    if (timer.ticksElapsed() > delay + 5 * 60 * 1000)
+        return true;
+    if (!g_game.isOnline())
+        return true;
+    const auto& player = g_game.getLocalPlayer();
+    return !player || !player->isWalking();
+}
 
-    if (canCheck(texture_timer, TEXTURE_TIME))
+void GarbageCollection::poll() {
+    if (canCheck(thingtype_timer, THINGTYPE_TIME)) {
+        thingType();
+        // Hojas de sprites decodificadas por encima del tope (ver spriteappearances.cpp).
+        g_spriteAppearances.liberarDecodificadas();
+    }
+
+    if (texture_timer.ticksElapsed() >= TEXTURE_TIME && momentoTranquilo(texture_timer, TEXTURE_TIME) && canCheck(texture_timer, TEXTURE_TIME))
         texture();
 
-    if (canCheck(lua_timer, LUA_TIME))
+    if (lua_timer.ticksElapsed() >= LUA_TIME && momentoTranquilo(lua_timer, LUA_TIME) && canCheck(lua_timer, LUA_TIME))
         lua();
 }
 
 void GarbageCollection::lua() {
+    AutoStat medida(STATS_GENERAL, "LuaGC");
     g_lua.collectGarbage();
 }
 
@@ -87,15 +107,22 @@ void GarbageCollection::thingType() {
     const auto& thingTypes = g_things.m_thingTypes[category];
     const size_t limit = std::min<size_t>(index + AMOUNT_PER_CHECK, thingTypes.size());
 
-    while (index < limit) {
+    // Cada textura descargada es un glDeleteTextures en el hilo principal. Cuando
+    // caducan cientos a la vez (todo lo que se vio hace 3 min), soltarlas en el
+    // mismo poll era un paron de ~100 ms; con tope gotean a 12 por segundo.
+    static constexpr int MAX_DESCARGAS_POR_PASADA = 24;
+    int descargadas = 0;
+
+    while (index < limit && descargadas < MAX_DESCARGAS_POR_PASADA) {
         auto& thing = thingTypes[index];
         if (thing->hasTexture() && thing->getLastTimeUsage().ticksElapsed() > IDLE_TIME) {
             thing->unload();
+            ++descargadas;
         }
         ++index;
     }
 
-    if (limit == thingTypes.size()) {
+    if (index >= thingTypes.size()) {
         index = 0;
         ++category;
     }

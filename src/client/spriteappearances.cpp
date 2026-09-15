@@ -21,6 +21,7 @@
  */
 
 #include "spriteappearances.h"
+#include <framework/util/stats.h>
 
 #include <nlohmann/json_fwd.hpp>
 #include "lzma.h"
@@ -28,6 +29,7 @@
 #include "framework/core/filestream.h"
 #include "framework/core/resourcemanager.h"
 #include "framework/graphics/image.h"
+#include "framework/stdext/time.h"
 
  // warnings related to protobuf
     // https://android.googlesource.com/platform/external/protobuf/+/brillo-m9-dev/vsprojects/readme.txt
@@ -108,24 +110,106 @@ int SpriteSheet::getSpritesPerSheet() const
     return getColumns() * spritesPerColumn;
 }
 
-bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
-{
-    if (sheet->m_loadingState.load(std::memory_order_acquire) == SpriteLoadState::LOADING)
-        return false;
+// Bytes de hojas decodificadas que hay ahora mismo en RAM (todas las hojas).
+static std::atomic<int64_t> s_bytesDecodificados{ 0 };
 
-    if (sheet->data)
+int64_t SpriteAppearances::bytesDecodificados() { return s_bytesDecodificados.load(std::memory_order_relaxed); }
+
+// UNA sola lectura de hoja del disco a la vez en todo el cliente, lea quien lea:
+// el hilo del mapa (suelos), el lector de precarga o los hilos del pool que
+// componen outfits (hasta 11 a la vez). Con todos leyendo a la vez de un disco
+// mecanico cada lectura pasaba de 10-20 ms a 350-550 ms (medido), y el hilo del
+// mapa se quedaba detras de todos: fotograma de 3 s al cambiar de zona. El hilo
+// del mapa tiene prioridad: mientras este esperando, los demas le ceden el turno.
+static std::mutex s_discoHojas;
+static std::atomic_int s_prioritariosEsperando{ 0 };
+static thread_local bool t_lecturaPrioritaria = false;
+
+void SpriteAppearances::setLecturaPrioritaria(const bool prioritaria) { t_lecturaPrioritaria = prioritaria; }
+
+static void cogerTurnoDeDisco()
+{
+    if (t_lecturaPrioritaria) {
+        s_prioritariosEsperando.fetch_add(1, std::memory_order_acq_rel);
+        s_discoHojas.lock();
+        s_prioritariosEsperando.fetch_sub(1, std::memory_order_acq_rel);
+        return;
+    }
+    while (true) {
+        while (s_prioritariosEsperando.load(std::memory_order_acquire) > 0)
+            stdext::millisleep(1);
+        s_discoHojas.lock();
+        if (s_prioritariosEsperando.load(std::memory_order_acquire) == 0)
+            return;
+        // llego un prioritario mientras cogiamos el candado: se le cede
+        s_discoHojas.unlock();
+        stdext::millisleep(1);
+    }
+}
+
+bool SpriteAppearances::leerComprimido(const SpriteSheetPtr& sheet) const
+{
+    std::lock_guard<std::mutex> lock(sheet->m_candadoFichero);
+    if (!sheet->comprimido.empty())
         return true;
 
-    if (sheet->m_loadingState.exchange(SpriteLoadState::LOADING, std::memory_order_acq_rel) == SpriteLoadState::LOADING)
+    // Orden de candados: primero el de la hoja, luego el del disco. Dentro del
+    // tramo de disco no se coge ningun candado de hoja, asi que no hay abrazo.
+    cogerTurnoDeDisco();
+    std::lock_guard<std::mutex> lockDisco(s_discoHojas, std::adopt_lock);
+
+    // Separado de DescomprimirHoja en el trazador: esto es DISCO (en uno mecanico,
+    // 10-70 ms por fichero), lo otro es CPU (~8 ms por hoja HD).
+    AutoStat medida(STATS_GENERAL, "LeerHoja", sheet->file);
+    const auto& path = fmt::format("{}{}", g_spriteAppearances.getPath(), sheet->file);
+    if (!g_resources.fileExists(path))
         return false;
 
-    try {
-        const auto& path = fmt::format("{}{}", g_spriteAppearances.getPath(), sheet->file);
-        if (!g_resources.fileExists(path))
-            return false;
+    const auto& fin = g_resources.openFile(path);
+    fin->cache(true); // deja el fichero entero en fin->m_data
+    if (fin->m_data.empty())
+        return false;
 
-        const auto& fin = g_resources.openFile(path);
-        fin->cache(true);
+    sheet->comprimido = fin->m_data;
+    return true;
+}
+
+bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
+{
+    const auto estado = sheet->m_loadingState.load(std::memory_order_acquire);
+    if (estado == SpriteLoadState::LOADING)
+        return false;
+    if (estado == SpriteLoadState::LOADED)
+        return true;
+
+    const auto previo = sheet->m_loadingState.exchange(SpriteLoadState::LOADING, std::memory_order_acq_rel);
+    if (previo == SpriteLoadState::LOADING)
+        return false;
+    if (previo == SpriteLoadState::LOADED) {
+        // otro hilo la termino entre la lectura de arriba y el exchange
+        sheet->m_loadingState.store(SpriteLoadState::LOADED, std::memory_order_release);
+        return true;
+    }
+
+    try {
+        if (!leerComprimido(sheet)) {
+            sheet->m_loadingState.store(SpriteLoadState::NONE, std::memory_order_release);
+            return false;
+        }
+
+        // Medida para el trazador de fotogramas lentos (g_stats.getSlow): una hoja
+        // HD de 768 son ~8 ms de LZMA, y si toca en el hilo del mapa es un tiron.
+        AutoStat medida(STATS_GENERAL, "DescomprimirHoja", sheet->file);
+
+        // Se lee de los bytes en RAM. Una vez rellenos no cambian, asi que no
+        // hace falta candado para leerlos.
+        const std::vector<uint8_t>& buf = sheet->comprimido;
+        size_t pos = 0;
+        const auto u8 = [&]() -> uint8_t {
+            if (pos >= buf.size())
+                throw stdext::exception("cabecera de la hoja truncada");
+            return buf[pos++];
+        };
 
         // Dimensionado al maximo (768) porque es thread_local y no se puede
         // redimensionar por pack. Lo que SI depende del pack es cuanto se le
@@ -147,11 +231,11 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
            [X + 0x05, 0x20]:   LZMA file size (Note: excluding the 32 bytes of this header) encoded as a 7-bit integer
        */
 
-        while (fin->getU8() == 0x00);
-        fin->skip(4);
-        while ((fin->getU8() & 0x80) == 0x80);
+        while (u8() == 0x00);
+        pos += 4;
+        while ((u8() & 0x80) == 0x80);
 
-        const uint8_t lclppb = fin->getU8();
+        const uint8_t lclppb = u8();
 
         lzma_options_lzma options{};
         options.lc = lclppb % 9;
@@ -162,12 +246,14 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
 
         uint32_t dictionarySize = 0;
         for (uint8_t i = 0; i < 4; ++i) {
-            dictionarySize += fin->getU8() << (i * 8);
+            dictionarySize += u8() << (i * 8);
         }
 
         options.dict_size = dictionarySize;
 
-        fin->skip(8); // cip compressed size
+        pos += 8; // cip compressed size
+        if (pos >= buf.size())
+            throw stdext::exception("hoja sin datos tras la cabecera");
 
         lzma_stream stream = LZMA_STREAM_INIT;
 
@@ -181,8 +267,8 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
             throw stdext::exception(fmt::format("failed to initialize lzma raw decoder result: {}", ret));
         }
 
-        stream.next_in = &fin->m_data[fin->tell()];
-        stream.avail_in = fin->size() - fin->tell();
+        stream.next_in = buf.data() + pos;
+        stream.avail_in = buf.size() - pos;
         stream.next_out = decompressBuffer.data();
         stream.avail_out = uncompressedSize;
 
@@ -234,8 +320,14 @@ bool SpriteAppearances::loadSpriteSheet(const SpriteSheetPtr& sheet) const
             std::memcpy(bottom, tempLine, widthBytes);
         }
 
-        sheet->data = std::make_unique<uint8_t[]>(bytesInSheet);
-        std::memcpy(sheet->data.get(), bufferStart, bytesInSheet);
+        auto datos = std::make_unique<uint8_t[]>(bytesInSheet);
+        std::memcpy(datos.get(), bufferStart, bytesInSheet);
+        {
+            std::unique_lock<std::shared_mutex> lock(sheet->m_candado);
+            sheet->data = std::move(datos);
+        }
+        s_bytesDecodificados.fetch_add(bytesInSheet, std::memory_order_relaxed);
+        sheet->ultimoUso.store(stdext::millis(), std::memory_order_relaxed);
 
         sheet->m_loadingState.store(SpriteLoadState::LOADED, std::memory_order_release);
         return true;
@@ -250,6 +342,50 @@ void SpriteAppearances::unload()
 {
     m_spritesCount = 0;
     m_sheets.clear();
+    s_bytesDecodificados.store(0, std::memory_order_relaxed);
+}
+
+// Tope de hojas decodificadas en RAM. Una hoja HD son 2,36 MB y antes no se
+// liberaba ninguna: medido, 3,5 GB privados a los 6 minutos de pasear por zonas
+// nuevas. Con el tope, las que llevan mas tiempo sin usarse se sueltan y, si
+// vuelven a hacer falta, se decodifican otra vez desde los bytes comprimidos que
+// siguen en RAM (~8 ms en un hilo del pool, sin tocar el disco).
+static constexpr int64_t TOPE_DECODIFICADAS = int64_t(512) << 20;
+static constexpr int64_t MARGEN_LIBERACION = int64_t(64) << 20;  // se baja hasta 64 MB por debajo del tope
+static constexpr int64_t GRACIA_MS = 5000;                        // lo usado hace menos de 5 s no se toca
+
+void SpriteAppearances::liberarDecodificadas()
+{
+    if (s_bytesDecodificados.load(std::memory_order_relaxed) <= TOPE_DECODIFICADAS)
+        return;
+
+    const int64_t ahora = stdext::millis();
+    std::vector<std::pair<int64_t, SpriteSheet*>> candidatas;
+    for (const auto& hoja : m_sheets) {
+        if (!hoja->estaDecodificada())
+            continue;
+        const int64_t uso = hoja->ultimoUso.load(std::memory_order_relaxed);
+        if (ahora - uso > GRACIA_MS)
+            candidatas.emplace_back(uso, hoja.get());
+    }
+    std::ranges::sort(candidatas, {}, &std::pair<int64_t, SpriteSheet*>::first);
+
+    const int64_t objetivo = TOPE_DECODIFICADAS - MARGEN_LIBERACION;
+    for (auto& [uso, hoja] : candidatas) {
+        if (s_bytesDecodificados.load(std::memory_order_relaxed) <= objetivo)
+            break;
+        // Si alguien la esta leyendo ahora mismo se deja para la siguiente pasada.
+        std::unique_lock<std::shared_mutex> lock(hoja->m_candado, std::try_to_lock);
+        if (!lock.owns_lock())
+            continue;
+        if (hoja->m_loadingState.load(std::memory_order_acquire) != SpriteLoadState::LOADED || !hoja->data)
+            continue;
+        // NONE antes de soltar: quien la pida la vuelve a cargar. Con el candado
+        // exclusivo cogido nadie puede estar leyendo el puntero.
+        hoja->m_loadingState.store(SpriteLoadState::NONE, std::memory_order_release);
+        hoja->data.reset();
+        s_bytesDecodificados.fetch_sub(SpriteSheet::bytesInSheet(), std::memory_order_relaxed);
+    }
 }
 
 SpriteSheetPtr SpriteAppearances::getSheetBySpriteId(const int id, bool& isLoading, const bool load /* = true */)
@@ -289,6 +425,18 @@ ImagePtr SpriteAppearances::getSpriteImage(const int id, bool& isLoading)
             return nullptr;
         }
 
+        // Candado compartido mientras se copian los pixeles: el recolector solo
+        // libera la hoja con el candado exclusivo.
+        std::shared_lock<std::shared_mutex> candado(sheet->m_candado);
+        if (!sheet->data) {
+            // liberada entre la comprobacion de estado y el candado: se tratara
+            // como "cargando" y quien la pida la volvera a pedir
+            isLoading = true;
+            return nullptr;
+        }
+        sheet->ultimoUso.store(stdext::millis(), std::memory_order_relaxed);
+        const uint8_t* datos = sheet->data.get();
+
         const Size& size = sheet->getSpriteSize();
 
         const auto& image = std::make_shared<Image>(size);
@@ -308,7 +456,7 @@ ImagePtr SpriteAppearances::getSpriteImage(const int id, bool& isLoading)
         const int spriteWidthBytes = size.width() * 4;
 
         for (int height = size.height() * spriteRow, offset = 0; height < size.height() + (spriteRow * size.height()); height++, offset++) {
-            std::memcpy(&pixelData[offset * spriteWidthBytes], &sheet->data[(height * SpriteSheet::widthBytes()) + (spriteColumn * spriteWidthBytes)], spriteWidthBytes);
+            std::memcpy(&pixelData[offset * spriteWidthBytes], &datos[(height * SpriteSheet::widthBytes()) + (spriteColumn * spriteWidthBytes)], spriteWidthBytes);
         }
 
         if (!image->hasTransparentPixel()) {
@@ -340,13 +488,15 @@ void SpriteAppearances::saveSpriteToFile(const int id, const std::string& file)
 void SpriteAppearances::saveSheetToFileBySprite(const int id, const std::string& file)
 {
     if (const auto& sheet = getSheetBySpriteId(id)) {
-        Image image({ SpriteSheet::SIZE }, 4, sheet->data.get());
-        image.savePNG(file);
+        saveSheetToFile(sheet, file);
     }
 }
 
 void SpriteAppearances::saveSheetToFile(const SpriteSheetPtr& sheet, const std::string& file)
 {
+    std::shared_lock<std::shared_mutex> candado(sheet->m_candado);
+    if (!sheet->data)
+        return;
     Image image({ SpriteSheet::SIZE }, 4, sheet->data.get());
     image.savePNG(file);
 }

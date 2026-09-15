@@ -632,3 +632,9 @@ const Color& Thing::getHighlightColor() {
     m_highlightColor.setAlpha(0.1f + std::abs(500 - g_clock.millis() % 1000) / 1000.0f);
     return m_highlightColor;
 }
+
+void Thing::precalentarHojas()
+{
+    if (const auto type = getThingType())
+        type->precalentarHojas();
+}

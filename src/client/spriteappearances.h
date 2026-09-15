@@ -23,6 +23,10 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
+#include <mutex>
+#include <shared_mutex>
+#include <vector>
 #include <framework/graphics/declarations.h>
 #include <framework/luaengine/luaobject.h>
 
@@ -109,8 +113,25 @@ public:
 
     SpriteLayout spriteLayout = SpriteLayout::SIZE_32_32;
     std::atomic<SpriteLoadState> m_loadingState = SpriteLoadState::NONE;
+
+    // Hoja decodificada (BGRA ya volteada). Leer o soltar SOLO con m_candado:
+    // el recolector la libera cuando lleva tiempo sin usarse (ver
+    // SpriteAppearances::liberarDecodificadas), asi que un puntero suelto puede
+    // morir debajo de quien lo lea. LOADED implica que data no es nula.
     std::unique_ptr<uint8_t[]> data;
+    mutable std::shared_mutex m_candado;
+
+    // El fichero .lzma tal cual, leido del disco UNA sola vez. Es pequeno (unos
+    // 130 KB por hoja HD) y evita volver al disco cuando la decodificada se ha
+    // liberado. Se rellena bajo m_candadoFichero y ya no cambia.
+    std::vector<uint8_t> comprimido;
+    std::mutex m_candadoFichero;
+
+    std::atomic<int64_t> ultimoUso{ 0 }; // stdext::millis() de la ultima lectura de sprites
+    int indice{ -1 };                     // posicion en m_sheets tras sortSheets(): para leer vecinas
     std::string file;
+
+    bool estaDecodificada() const { return m_loadingState.load(std::memory_order_acquire) == SpriteLoadState::LOADED; }
 };
 
 //@bindsingleton g_spriteAppearances
@@ -129,6 +150,23 @@ public:
     std::string getPath() const { return m_path; }
 
     bool loadSpriteSheet(const SpriteSheetPtr& sheet) const;
+
+    // Solo lee el fichero a memoria (sin decodificar). Lo usa el cargador de
+    // precarga para las hojas vecinas en sus ratos libres.
+    bool leerComprimido(const SpriteSheetPtr& sheet) const;
+
+    // El hilo que lo active pasa por delante de los demas al leer hojas del
+    // disco (lo usa el camino sincrono de los suelos en el hilo del mapa).
+    static void setLecturaPrioritaria(bool prioritaria);
+
+    // Libera las hojas decodificadas menos usadas cuando se pasa del tope.
+    // Lo llama GarbageCollection cada pocos segundos.
+    void liberarDecodificadas();
+    static int64_t bytesDecodificados();
+
+    SpriteSheetPtr getSheetByIndex(const int i) const {
+        return (i >= 0 && i < static_cast<int>(m_sheets.size())) ? m_sheets[i] : nullptr;
+    }
     void saveSheetToFileBySprite(int id, const std::string& file);
     void saveSheetToFile(const SpriteSheetPtr& sheet, const std::string& file);
     SpriteSheetPtr getSheetBySpriteId(int id, bool load = true) {
@@ -145,6 +183,8 @@ public:
         std::ranges::sort(m_sheets, [](const SpriteSheetPtr& a, const SpriteSheetPtr& b) {
             return a->firstId < b->firstId;
         });
+        for (int i = 0; i < static_cast<int>(m_sheets.size()); ++i)
+            m_sheets[i]->indice = i;
     }
 
     ImagePtr getSpriteImage(int id) {

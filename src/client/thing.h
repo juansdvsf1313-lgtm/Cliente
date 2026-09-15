@@ -67,6 +67,10 @@ public:
     bool isCommon() { return !isGround() && !isGroundBorder() && !isOnTop() && !isCreature() && !isOnBottom(); }
     void canDraw(const bool canDraw) { m_canDraw = canDraw; }
 
+    // Descomprime en segundo plano las hojas de sprites de este objeto (ver
+    // ThingType::precalentarHojas). Publico porque getThingType() es protegido.
+    void precalentarHojas();
+
     Animator* getAnimator() const;
     Animator* getIdleAnimator() const;
 

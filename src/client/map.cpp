@@ -197,6 +197,12 @@ void Map::addThing(const ThingPtr& thing, const Position& pos, const int16_t sta
         if (m_floatingEffect || !thing->isEffect() || tile->getGround()) {
             tile->addThing(thing, stackPos);
             notificateTileUpdate(pos, thing, Otc::OPERATION_ADD);
+
+            // Lo que llega por red esta un paso por delante de lo que se ve: es el
+            // momento de descomprimir sus hojas de sprites en segundo plano, para que
+            // al entrar en pantalla la textura se componga sin esperar al LZMA.
+            if (thing->isItem() || thing->isCreature())
+                thing->precalentarHojas();
         }
     }
 }

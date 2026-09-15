@@ -23,6 +23,8 @@
 #include "thingtype.h"
 
 #include <atomic>
+#include <mutex>
+#include <unordered_map>
 #include "animator.h"
 #include "game.h"
 #include "gameconfig.h"
@@ -32,6 +34,7 @@
 #include "framework/core/asyncdispatcher.h"
 #include "framework/core/clock.h"
 #include "framework/stdext/time.h"
+#include <framework/util/stats.h>
 #include "framework/core/filestream.h"
 #include "framework/graphics/drawpoolmanager.h"
 #include "framework/graphics/image.h"
@@ -911,8 +914,13 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
             async = false;
 
         if (!async) {
+            AutoStat medida(STATS_GENERAL, esSuelo ? "ComponerSuelo" : "ComponerObjeto", std::to_string(m_id));
             s_esperarHojas = esSuelo;
+            // El suelo se compone en el hilo del mapa: sus lecturas de disco pasan
+            // por delante de las de los hilos que componen outfits.
+            SpriteAppearances::setLecturaPrioritaria(esSuelo);
             loadTexture(animationPhase);
+            SpriteAppearances::setLecturaPrioritaria(false);
             s_esperarHojas = false;
             m_loading.store(false, std::memory_order_release);
             if (esSuelo && !textureData.source)
@@ -957,6 +965,129 @@ void ThingType::preload()
     g_asyncDispatcher->detach_task([this] {
         loadTexture(0);
         m_loading.store(false, std::memory_order_release);
+    });
+}
+
+void ThingType::precalentarHojas()
+{
+    // Descomprime en segundo plano las hojas de sprites de este objeto, para que
+    // cuando entre en pantalla componer su textura no tenga que esperar al LZMA
+    // (~8 ms por hoja HD) dentro del hilo del mapa: era un micro tiron al caminar
+    // cada vez que aparecia un suelo de una hoja nueva. Se llama al llegar la
+    // casilla por red, que es un paso antes de que se vea.
+    //
+    // Solo las hojas, no la textura: componerla la hace quien la necesite, y asi
+    // no se pisa con m_loading ni con el camino sincrono de los suelos.
+    if (m_null || m_spritesIndex.empty() || hasTexture())
+        return;
+    if (!(m_fromAppearances || g_game.isUsingProtobuf()))
+        return;
+
+    std::vector<SpriteSheetPtr> pendientes;
+    for (const auto spriteId : m_spritesIndex) {
+        if (spriteId == 0)
+            continue;
+        bool cargando = false;
+        const auto& hoja = g_spriteAppearances.getSheetBySpriteId(spriteId, cargando, false);
+        if (!hoja || hoja->m_loadingState.load(std::memory_order_acquire) != SpriteLoadState::NONE)
+            continue;
+        if (std::ranges::find(pendientes, hoja) == pendientes.end())
+            pendientes.emplace_back(hoja);
+    }
+    if (pendientes.empty())
+        return;
+
+    encolarHojas(std::move(pendientes));
+}
+
+// Cola de precarga con UN solo lector.
+//
+// La primera version lanzaba una tarea al pool por cada objeto, y al cargar una
+// zona (login, escaleras, teleport) salian decenas de lecturas de disco a la vez.
+// En un disco mecanico eso es una cola de seeks: medido, cada hoja pasaba de 8 ms
+// a 300-540 ms, y el hilo del mapa, que tambien tiene que leer las suyas para los
+// suelos visibles, se quedaba detras de todas (fotogramas de 400 ms a 1,5 s).
+// Con un unico lector el disco atiende las peticiones de una en una y la lectura
+// sincrona del hilo del mapa solo compite con una.
+//
+// Es una pila (la ultima que entra, primera que sale): lo recien llegado por red
+// es lo mas cercano a verse; el fondo de la pila es la descripcion inicial del
+// mapa, que el hilo del mapa habra compuesto ya de forma sincrona si hizo falta.
+static std::mutex s_colaHojasMutex;
+static std::vector<SpriteSheetPtr> s_colaHojas;
+static std::atomic_bool s_lectorHojasActivo{ false };
+
+void ThingType::encolarHojas(std::vector<SpriteSheetPtr>&& hojas)
+{
+    {
+        std::lock_guard<std::mutex> lock(s_colaHojasMutex);
+        for (auto& hoja : hojas)
+            s_colaHojas.emplace_back(std::move(hoja));
+        // Sin tope de tamano: cada entrada es un shared_ptr; un login mete unos
+        // cientos y se vacian en segundos.
+    }
+
+    bool esperado = false;
+    if (!s_lectorHojasActivo.compare_exchange_strong(esperado, true, std::memory_order_acq_rel))
+        return;
+
+    g_asyncDispatcher->detach_task([] {
+        // Indices de las hojas cargadas en esta tanda: en los ratos libres se leen
+        // del disco (solo leer, sin decodificar) sus vecinas por id de sprite. Los
+        // sprites de un mismo tileset van seguidos, asi que la vecina de una hoja
+        // que acaba de hacer falta tiene muchas papeletas de hacer falta despues,
+        // y leerla ahora es un acceso casi secuencial en vez de un seek mas tarde.
+        std::vector<int> recientes;
+        const auto hayCola = [] {
+            std::lock_guard<std::mutex> lock(s_colaHojasMutex);
+            return !s_colaHojas.empty();
+        };
+
+        while (true) {
+            SpriteSheetPtr hoja;
+            {
+                std::lock_guard<std::mutex> lock(s_colaHojasMutex);
+                if (!s_colaHojas.empty()) {
+                    hoja = std::move(s_colaHojas.back());
+                    s_colaHojas.pop_back();
+                }
+            }
+
+            if (hoja) {
+                if (hoja->m_loadingState.load(std::memory_order_acquire) == SpriteLoadState::NONE)
+                    g_spriteAppearances.loadSpriteSheet(hoja);
+                if (hoja->indice >= 0 && recientes.size() < 32)
+                    recientes.emplace_back(hoja->indice);
+                continue;
+            }
+
+            // Cola vacia: lectura anticipada de vecinas mientras no llegue nada nuevo.
+            bool leida = false;
+            for (const int base : recientes) {
+                for (const int d : { 1, -1, 2, -2 }) {
+                    // leerComprimido comprueba bajo candado si ya esta leida y sale al momento
+                    if (const auto& vecina = g_spriteAppearances.getSheetByIndex(base + d)) {
+                        g_spriteAppearances.leerComprimido(vecina);
+                        leida = true;
+                        if (hayCola())
+                            break;
+                    }
+                }
+                if (hayCola())
+                    break;
+            }
+            recientes.clear();
+            if (leida && hayCola())
+                continue;
+
+            std::lock_guard<std::mutex> lock(s_colaHojasMutex);
+            if (!s_colaHojas.empty())
+                continue;
+            // Se apaga con el candado cogido: quien encole despues vera la
+            // bandera a false y arrancara un lector nuevo.
+            s_lectorHojasActivo.store(false, std::memory_order_release);
+            return;
+        }
     });
 }
 
@@ -1006,7 +1137,7 @@ void ThingType::loadTexture(const int animationPhase)
                             // reintentar en otro fotograma, pero componiendo un suelo al momento eso
                             // lo dejaria sin pintar: se espera a la hoja, como mucho 8 ms (mas
                             // seria un tiron; si no llega, sale en el siguiente fotograma).
-                            for (int espera = 0; isLoading && s_esperarHojas && espera < 8; ++espera) {
+                            for (int espera = 0; isLoading && s_esperarHojas && espera < 50; ++espera) {
                                 stdext::millisleep(1);
                                 isLoading = false;
                                 spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
@@ -1045,7 +1176,7 @@ void ThingType::loadTexture(const int animationPhase)
                                     // reintentar en otro fotograma, pero componiendo un suelo al momento eso
                                     // lo dejaria sin pintar: se espera a la hoja, como mucho 8 ms (mas
                             // seria un tiron; si no llega, sale en el siguiente fotograma).
-                                    for (int espera = 0; isLoading && s_esperarHojas && espera < 8; ++espera) {
+                                    for (int espera = 0; isLoading && s_esperarHojas && espera < 50; ++espera) {
                                         stdext::millisleep(1);
                                         isLoading = false;
                                         spriteImage = g_sprites.getSpriteImage(spriteId, isLoading);
@@ -1269,6 +1400,94 @@ int ThingType::getExactHeight()
     const auto& textureDataPos = m_textureData[0].pos[frameIndex];
     const Size& size = textureDataPos.originRects.size() - textureDataPos.offsets.toSize();
     return m_exactHeight = size.height();
+}
+
+std::vector<ThingType::RedEye> ThingType::getRedEyes(const int xPattern, const int yPattern, const int zPattern, const int animationPhase)
+{
+    // Solo sprites de tamano exacto (appearances / protobuf), que son los del 15.x.
+    if (m_null || m_animationPhases == 0 || !(m_fromAppearances || g_game.isUsingProtobuf()))
+        return {};
+
+    const uint32_t spriteIndex = getSpriteIndex(-1, -1, 0, xPattern, yPattern, zPattern, animationPhase);
+    if (spriteIndex >= m_spritesIndex.size())
+        return {};
+    const uint32_t spriteId = m_spritesIndex[spriteIndex];
+    const int spriteSize = g_gameConfig.getSpriteSize();
+
+    // la clave lleva el modo HD: el mismo sprite tiene otra imagen en HD
+    static std::mutex mutex;
+    static std::unordered_map<uint64_t, std::vector<RedEye>> cache;
+    const uint64_t clave = (static_cast<uint64_t>(m_id) << 33) | (static_cast<uint64_t>(spriteId) << 1) | (spriteSize > 32 ? 1u : 0u);
+    {
+        std::lock_guard lock(mutex);
+        if (const auto it = cache.find(clave); it != cache.end())
+            return it->second;
+    }
+
+    bool isLoading = false;
+    const auto image = g_sprites.getSpriteImage(spriteId, isLoading);
+    if (isLoading || !image || image->getBpp() < 4)
+        return {};
+
+    // mismo criterio que eye_flame.frag: rojo saturado (sat >= 0.5), con rojo >= 0.40
+    // y al menos el doble que verde y azul
+    const int w = image->getSize().width();
+    const int h = image->getSize().height();
+    std::vector<uint8_t> marca(static_cast<size_t>(w) * h, 0);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const uint8_t* p = image->getPixel(x, y);
+            const int r = p[0], g = p[1], b = p[2];
+            const int mx = std::max({ r, g, b });
+            const int mn = std::min({ r, g, b });
+            if (p[3] >= 128 && mx > 0 && (mx - mn) * 2 >= mx && r >= 102 && r >= 2 * g && r >= 2 * b)
+                marca[static_cast<size_t>(y) * w + x] = 1;
+        }
+    }
+
+    // la imagen va pegada abajo a la derecha del cuadro, igual que en loadTexture
+    const Point colocado = Point(m_size.width() - w / spriteSize, m_size.height() - h / spriteSize) * spriteSize;
+
+    // cada grupo de pixeles rojos (8 vecinos) es un ojo
+    std::vector<RedEye> ojos;
+    std::vector<int> pila;
+    for (int i = 0; i < w * h; ++i) {
+        if (marca[i] != 1)
+            continue;
+        int minY = h, minX = w, maxX = -1, cuenta = 0;
+        double sumaX = 0;
+        marca[i] = 2;
+        pila.push_back(i);
+        while (!pila.empty()) {
+            const int k = pila.back();
+            pila.pop_back();
+            const int kx = k % w, ky = k / w;
+            minY = std::min(minY, ky);
+            minX = std::min(minX, kx);
+            maxX = std::max(maxX, kx);
+            sumaX += kx;
+            ++cuenta;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dx = -1; dx <= 1; ++dx) {
+                    const int nx = kx + dx, ny = ky + dy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                        continue;
+                    const int j = ny * w + nx;
+                    if (marca[j] == 1) {
+                        marca[j] = 2;
+                        pila.push_back(j);
+                    }
+                }
+            }
+        }
+        RedEye ojo;
+        ojo.top = PointF(colocado.x + static_cast<float>(sumaX / cuenta) + 0.5f, static_cast<float>(colocado.y + minY));
+        ojo.width = static_cast<float>(maxX - minX + 1);
+        ojos.push_back(ojo);
+    }
+
+    std::lock_guard lock(mutex);
+    return cache[clave] = std::move(ojos);
 }
 
 ThingFlagAttr ThingType::thingAttrToThingFlagAttr(const ThingAttr attr) {

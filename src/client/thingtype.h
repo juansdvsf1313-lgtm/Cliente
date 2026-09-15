@@ -84,6 +84,17 @@ public:
     Animator* getIdleAnimator() const { return m_idleAnimator; }
 
     const Size& getSize() { return m_size; }
+
+    // Ojos rojos de un cuadro de outfit (shader "Ojos en Llamas"): por cada ojo, el
+    // centro de su fila de arriba y su ancho, en pixeles del cuadro sin recortar (los
+    // mismos que usa draw). Se calcula una vez por sprite. Sale vacio si el sprite aun
+    // se esta cargando (se reintenta en el siguiente fotograma) o si no hay ojos.
+    struct RedEye
+    {
+        PointF top;
+        float width{ 0 };
+    };
+    std::vector<RedEye> getRedEyes(int xPattern, int yPattern, int zPattern, int animationPhase);
     const Point& getDisplacement() { return m_displacement; }
     const Light& getLight() { return m_light; }
     const MarketData& getMarketData() { return m_market; }
@@ -203,6 +214,12 @@ public:
     // larga los outfits van apareciendo segun bajas. Con esto la ventana puede
     // encargarlas todas al abrirse y que esten listas antes de llegar a ellas.
     void preload();
+
+    // Descomprime en segundo plano las hojas de sprites que usa este objeto (no la
+    // textura). Ver el .cpp: quita el LZMA del hilo del mapa al caminar.
+    void precalentarHojas();
+    // Cola de precarga con un solo lector de disco (ver el .cpp).
+    static void encolarHojas(std::vector<SpriteSheetPtr>&& hojas);
 
     // Diagnostico: veces que draw() no pinto un objeto por no tener textura lista
     // (ni la fase pedida ni la 0). Bajo tierra eso deja ver el fondo negro.
