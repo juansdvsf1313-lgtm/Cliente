@@ -206,12 +206,19 @@ void GraphicalApplication::run()
 
         g_luaThreadId = g_eventThreadId = stdext::getThreadId();
         while (!m_stopping) {
-            poll();
+            {
+                AutoStat s(STATS_RENDER, "PollMapa");
+                poll();
+            }
 
             if (!g_window.isVisible()) {
                 stdext::millisleep(10);
                 continue;
             }
+
+            // Trazador de fotogramas lentos: todo lo que tarda este hilo en recoger un
+            // fotograma (sin la espera del limitador de fps, que va despues).
+            AutoStat fotograma(STATS_RENDER, "FotogramaMapa");
 
             if (g_game.isOnline()) {
                 AutoStat s(STATS_RENDER, "DrawPreload");
@@ -250,6 +257,7 @@ void GraphicalApplication::run()
                 tasks.clear();
             }
 
+            fotograma.cerrar();
             m_mapProcessFrameCounter.update();
         }
     });
@@ -260,14 +268,18 @@ void GraphicalApplication::run()
 #else
     m_running = true;
     while (!m_stopping) {
-        mainPoll();
-
         if (!g_window.isVisible()) {
+            mainPoll();
             stdext::millisleep(10);
             continue;
         }
 
         {
+            // Trazador de fotogramas lentos del hilo principal: poll + dibujado. El
+            // swapBuffers va aparte porque con vsync incluye la espera del monitor.
+            AutoStat fotograma(STATS_RENDER, "FotogramaPrincipal");
+            mainPoll();
+
             AutoStat s(STATS_RENDER, "DrawPool");
             g_drawPool.draw();
         }
@@ -295,12 +307,20 @@ void GraphicalApplication::run()
 
 void GraphicalApplication::poll()
 {
-    GarbageCollection::poll();
-
-    Application::poll();
+    {
+        AutoStat s(STATS_RENDER, "PollGC");
+        GarbageCollection::poll();
+    }
+    {
+        AutoStat s(STATS_RENDER, "PollDespachador");
+        Application::poll();
+    }
 
 #ifdef FRAMEWORK_SOUND
-    g_sounds.poll();
+    {
+        AutoStat s(STATS_RENDER, "PollSonido");
+        g_sounds.poll();
+    }
 #endif
 
     g_particles.poll();

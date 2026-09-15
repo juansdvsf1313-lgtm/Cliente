@@ -46,7 +46,7 @@ void Stats::add(int type, Stat* stat) {
     it->second.calls += 1;
     it->second.executionTime += stat->executionTime;
 
-    if (stat->executionTime > 1000) {
+    if (stat->executionTime > static_cast<uint64_t>(slowThresholdMicros.load(std::memory_order_relaxed))) {
         if (stats[type].slow.size() > 10000) {
             delete stats[type].slow.front();
             stats[type].slow.pop_front();

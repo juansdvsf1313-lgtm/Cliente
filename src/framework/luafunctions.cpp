@@ -299,6 +299,8 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_stats", "resume", &Stats::resume, &g_stats);
     g_lua.bindSingletonFunction("g_stats", "getSlow", &Stats::getSlow, &g_stats);
     g_lua.bindSingletonFunction("g_stats", "clearSlow", &Stats::clearSlow, &g_stats);
+    g_lua.bindSingletonFunction("g_stats", "setSlowThreshold", &Stats::setSlowThreshold, &g_stats);
+    g_lua.bindSingletonFunction("g_stats", "getSlowThreshold", &Stats::getSlowThreshold, &g_stats);
     g_lua.bindSingletonFunction("g_stats", "getSleepTime", &Stats::getSleepTime, &g_stats);
     g_lua.bindSingletonFunction("g_stats", "resetSleepTime", &Stats::resetSleepTime, &g_stats);
     g_lua.bindSingletonFunction("g_stats", "getWidgetsInfo", &Stats::getWidgetsInfo, &g_stats);
@@ -510,6 +512,8 @@ void Application::registerLuaFunctions()
         static_cast<std::string (FontManager::*)(const std::string&, int, int, const Color&)>(&FontManager::importTTF), &g_fonts);
     g_lua.bindSingletonFunction("g_fonts", "importFontWithSize",
         static_cast<bool (FontManager::*)(const std::string&, int)>(&FontManager::importFont), &g_fonts);
+    // Letra sin suavizado como la del cliente oficial: registra "<fuente>-mono_<tam>".
+    g_lua.bindSingletonFunction("g_fonts", "importFontMono", &FontManager::importTTFMono, &g_fonts);
     g_lua.bindSingletonFunction("g_fonts", "fontExists", &FontManager::fontExists, &g_fonts);
 
     // ParticleManager
@@ -531,6 +535,8 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_shaders", "addMultiTexture", &ShaderManager::addMultiTexture, &g_shaders);
     g_lua.bindSingletonFunction("g_shaders", "getShader", &ShaderManager::getShader, &g_shaders);
     g_lua.bindSingletonFunction("g_shaders", "setOutfitAddonLayer", &ShaderManager::setOutfitAddonLayer, &g_shaders);
+    g_lua.bindSingletonFunction("g_shaders", "setOutfitLayerPasses", &ShaderManager::setOutfitLayerPasses, &g_shaders);
+    g_lua.bindSingletonFunction("g_shaders", "setOutfitFixedColor", &ShaderManager::setOutfitFixedColor, &g_shaders);
     g_lua.bindClassStaticFunction("g_shaders", "clear", [] {
         g_mainDispatcher.addEvent([] { g_shaders.clear(); });
     });

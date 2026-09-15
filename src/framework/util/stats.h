@@ -110,6 +110,13 @@ public:
     inline void pause() { paused = true; }
     inline void resume() { paused = false; }
 
+    // A partir de cuantos ms un tramo entra en la lista de "lentos". Por defecto
+    // 1 ms, como siempre; el analizador lo sube para que la lista no se llene de
+    // fotogramas normales (a 1 ms se tocaba el tope de 10.000 cada pocos segundos
+    // y recorrerla/vaciarla costaba 13-33 ms: el analizador se media a si mismo).
+    void setSlowThreshold(const int ms) { slowThresholdMicros = std::max(1, ms) * 1000; }
+    int getSlowThreshold() const { return slowThresholdMicros / 1000; }
+
 private:
     struct
     {
@@ -128,6 +135,7 @@ private:
     int createdCreatures = 0;
     int destroyedCreatures = 0;
     std::atomic_bool paused { false };
+    std::atomic_int slowThresholdMicros { 1000 };
     std::mutex m_mutex;
 };
 
@@ -139,10 +147,17 @@ public:
     AutoStat(int type, const std::string& description, const std::string& extraDescription = "") :
         m_type(type), m_stat(new Stat(0, description, extraDescription)), m_timePoint(std::chrono::high_resolution_clock::now()) {}
 
-    ~AutoStat() {
+    ~AutoStat() { cerrar(); }
+
+    // Cierra la medida antes de salir del bloque (p. ej. antes de la espera del
+    // limitador de fps). Idempotente.
+    void cerrar() {
+        if (!m_stat)
+            return;
         m_stat->executionTime = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - m_timePoint).count();
         m_stat->executionTime -= m_minusTime;
         g_stats.add(m_type, m_stat);
+        m_stat = nullptr;
     }
 
     AutoStat(const AutoStat&) = delete;
