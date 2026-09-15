@@ -25,6 +25,7 @@
 #include "graphics.h"
 #include "painter.h"
 #include "textureatlas.h"
+#include "texture.h"
 #include <framework/core/configmanager.h>
 
 thread_local static uint8_t CURRENT_POOL = static_cast<uint8_t>(DrawPoolType::LAST);
@@ -40,8 +41,12 @@ void DrawPoolManager::init(const uint16_t spriteSize)
     if (spriteSize != 0)
         m_spriteSize = spriteSize;
 
-    auto mapAtlasSize = g_configs.getPublicConfig().graphics.mapAtlasSize;
-    auto foregroundAtlasSize = g_configs.getPublicConfig().graphics.foregroundAtlasSize;
+    // int, no auto: el campo del config es int16_t y con 0 ("el maximo de la
+    // GPU") se le asignaba getMaxTextureSize(), que en NVIDIA es 32768. Eso
+    // desbordaba a -32768 y el atlas del mapa quedaba DESACTIVADO sin aviso:
+    // cada textura distinta era un draw call (medido: hasta 1.352 por fotograma).
+    int mapAtlasSize = g_configs.getPublicConfig().graphics.mapAtlasSize;
+    int foregroundAtlasSize = g_configs.getPublicConfig().graphics.foregroundAtlasSize;
 
     if (mapAtlasSize == 0)
         mapAtlasSize = g_graphics.getMaxTextureSize();
@@ -90,6 +95,7 @@ bool DrawPoolManager::shaderNeedFramebuffer() const { return getCurrentPool()->g
 void DrawPoolManager::draw()
 {
     DrawPool::resetUploadBudget();
+    Texture::borrarPendientes();
 
     if (m_size != g_graphics.getViewportSize()) {
         m_size = g_graphics.getViewportSize();

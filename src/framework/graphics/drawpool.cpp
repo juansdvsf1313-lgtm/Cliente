@@ -21,6 +21,7 @@
  */
 
 #include "drawpool.h"
+#include <framework/util/stats.h>
 
 #include <atomic>
 
@@ -419,9 +420,14 @@ void DrawPool::popTransformMatrix()
 // Subir un atlas de outfit en HD son 8 MB con glTexImage2D, y eso ocurre en el
 // hilo principal dentro del dibujado. Varias juntas alargan el fotograma lo
 // suficiente para notarse: medido, 23 tirones en 30 s con picos de 66 ms.
-static constexpr int UPLOADS_PER_FRAME = 2;
-static std::atomic_int s_uploadLimit{ UPLOADS_PER_FRAME };
-static std::atomic_int s_uploadBudget{ UPLOADS_PER_FRAME };
+// El presupuesto va en BYTES, no en numero de texturas: dos atlas de 8 MB en el
+// mismo fotograma ya pasan de los 6 ms que dura uno a 165 Hz. El limite se
+// expresa en MB por fotograma; la primera subida grande de cada fotograma entra
+// siempre aunque sea mayor que el limite, para que ninguna se quede sin subir.
+static constexpr int MB_SUBIDA_POR_FOTOGRAMA = 6;
+static std::atomic_int s_uploadLimit{ MB_SUBIDA_POR_FOTOGRAMA };
+static std::atomic<int64_t> s_uploadBudget{ int64_t(MB_SUBIDA_POR_FOTOGRAMA) << 20 };
+static std::atomic_bool s_primeraSubidaHecha{ false };
 
 // Contadores de diagnostico. Un aplazamiento es una textura que tocaba subir y
 // no cupo en el presupuesto del fotograma: ese objeto NO se pinta ese fotograma.
@@ -431,21 +437,41 @@ static std::atomic_int s_deferredThisFrame{ 0 };
 static std::atomic_int s_deferredMaxFrame{ 0 };
 static std::atomic_uint64_t s_framesWithDeferred{ 0 };
 
+// Draw calls por fotograma (lo que de verdad cuesta en el driver a 500 fps).
+static std::atomic_uint32_t s_drawCallsMax{ 0 };
+static std::atomic_uint64_t s_drawCallsSum{ 0 };
+static std::atomic_uint64_t s_drawCallsFrames{ 0 };
+
 void DrawPool::resetUploadBudget()
 {
+    // Una vez por fotograma: se recogen los draw calls del fotograma anterior.
+    if (const uint32_t llamadas = Painter::takeDrawCalls(); llamadas > 0) {
+        s_drawCallsSum.fetch_add(llamadas, std::memory_order_relaxed);
+        s_drawCallsFrames.fetch_add(1, std::memory_order_relaxed);
+        uint32_t max = s_drawCallsMax.load(std::memory_order_relaxed);
+        while (llamadas > max && !s_drawCallsMax.compare_exchange_weak(max, llamadas, std::memory_order_relaxed)) {}
+    }
+
     const int frame = s_deferredThisFrame.exchange(0, std::memory_order_relaxed);
     if (frame > 0) {
         s_framesWithDeferred.fetch_add(1, std::memory_order_relaxed);
         int max = s_deferredMaxFrame.load(std::memory_order_relaxed);
         while (frame > max && !s_deferredMaxFrame.compare_exchange_weak(max, frame, std::memory_order_relaxed)) {}
     }
-    s_uploadBudget.store(s_uploadLimit.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    s_uploadBudget.store(int64_t(s_uploadLimit.load(std::memory_order_relaxed)) << 20, std::memory_order_relaxed);
+    s_primeraSubidaHecha.store(false, std::memory_order_relaxed);
 }
 
-bool DrawPool::consumeUploadBudget() {
-    int left = s_uploadBudget.load(std::memory_order_relaxed);
-    while (left > 0) {
-        if (s_uploadBudget.compare_exchange_weak(left, left - 1, std::memory_order_relaxed))
+bool DrawPool::consumeUploadBudget(const int64_t bytes) {
+    // La primera grande del fotograma siempre pasa (si no, una de 16 MB con un
+    // limite de 6 no subiria nunca).
+    if (!s_primeraSubidaHecha.exchange(true, std::memory_order_relaxed)) {
+        s_uploadBudget.fetch_sub(bytes, std::memory_order_relaxed);
+        return true;
+    }
+    int64_t left = s_uploadBudget.load(std::memory_order_relaxed);
+    while (left >= bytes) {
+        if (s_uploadBudget.compare_exchange_weak(left, left - bytes, std::memory_order_relaxed))
             return true;
     }
     s_deferredTotal.fetch_add(1, std::memory_order_relaxed);
@@ -458,11 +484,14 @@ int DrawPool::getUploadLimit() { return s_uploadLimit.load(std::memory_order_rel
 
 std::string DrawPool::getUploadStats()
 {
-    return fmt::format("limite={} aplazadas={} fotogramas_con_aplazadas={} max_en_un_fotograma={}",
+    const uint64_t frames = s_drawCallsFrames.load(std::memory_order_relaxed);
+    return fmt::format("limite={} aplazadas={} fotogramas_con_aplazadas={} max_en_un_fotograma={} drawcalls_max={} drawcalls_media={}",
         s_uploadLimit.load(std::memory_order_relaxed),
         s_deferredTotal.load(std::memory_order_relaxed),
         s_framesWithDeferred.load(std::memory_order_relaxed),
-        s_deferredMaxFrame.load(std::memory_order_relaxed));
+        s_deferredMaxFrame.load(std::memory_order_relaxed),
+        s_drawCallsMax.load(std::memory_order_relaxed),
+        frames ? s_drawCallsSum.load(std::memory_order_relaxed) / frames : 0);
 }
 
 void DrawPool::resetUploadStats()
@@ -470,6 +499,9 @@ void DrawPool::resetUploadStats()
     s_deferredTotal.store(0, std::memory_order_relaxed);
     s_framesWithDeferred.store(0, std::memory_order_relaxed);
     s_deferredMaxFrame.store(0, std::memory_order_relaxed);
+    s_drawCallsMax.store(0, std::memory_order_relaxed);
+    s_drawCallsSum.store(0, std::memory_order_relaxed);
+    s_drawCallsFrames.store(0, std::memory_order_relaxed);
 }
 
 static std::atomic_bool s_holeDebug{ false };
@@ -496,12 +528,16 @@ bool DrawPool::PoolState::execute(DrawPool* pool) const {
         // limpia a negro, asi que eso eran los micro puntos negros de la lava.
         static constexpr int PIXELES_TEXTURA_GRANDE = 512 * 512;
         const bool grande = texture->getWidth() * texture->getHeight() > PIXELES_TEXTURA_GRANDE;
-        if (texture->needsUpload() && grande && !consumeUploadBudget())
+        if (texture->needsUpload() && grande && !consumeUploadBudget(int64_t(texture->getWidth()) * texture->getHeight() * 4))
             return false;
 
         texture->create();
         g_painter->setTexture(texture);
         if (texture->canCacheInAtlas() && pool->m_atlas && !texture->getAtlasRegion(pool->m_atlas->getType())) {
+            // Copiar al atlas (glTexSubImage2D sobre una textura que se esta usando)
+            // puede hacer esperar al driver: se mide como el resto de causas.
+            AutoStat medida(STATS_GENERAL, "AtlasAdd",
+                            std::to_string(texture->getWidth()) + "x" + std::to_string(texture->getHeight()));
             pool->m_atlas->addTexture(texture);
         }
     } else

@@ -104,7 +104,7 @@ public:
 
     // Presupuesto de subidas de textura a la GPU por fotograma. Ver execute().
     static void resetUploadBudget();
-    static bool consumeUploadBudget();
+    static bool consumeUploadBudget(int64_t bytes);   // bytes que quiere subir esta textura
 
     // Diagnostico del presupuesto: tope ajustable en caliente y contadores de
     // cuantas subidas se aplazaron.

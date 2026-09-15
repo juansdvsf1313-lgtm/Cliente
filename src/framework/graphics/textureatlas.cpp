@@ -31,6 +31,12 @@ static constexpr uint8_t SMOOTH_PADDING = 2;
 
 // Limit texture size based on atlas size (Default: 35%)
 static constexpr float MAX_ATLAS_TEXTURE_COVERAGE = 0.35f;
+// Atlas del MAPA: solo texturas de hasta 1/16 de la capa (1024x1024 con capas de
+// 4096). Con el 35 % entraban los atlas de outfit de 2048x2048 (4 MP): cada uno se
+// comia un cuarto de capa, el atlas abrio 11 capas (700 MB de VRAM) y los suelos
+// quedaron repartidos entre capas, que es lo que rompe los lotes. Un outfit es un
+// draw call propio de todas formas: fuera del atlas no pierde nada.
+static constexpr float MAX_MAP_ATLAS_TEXTURE_COVERAGE = 1.f / 16.f;
 
 // Minimum texture size (including padding) to be cached in the atlas
 // With SMOOTH_PADDING = 2 this results in 8 (4 + 2*2)
@@ -77,7 +83,8 @@ bool TextureAtlas::canAdd(const TexturePtr& texture) const {
     }
 
     const int64_t atlasPixelArea = static_cast<int64_t>(m_size.width()) * m_size.height();
-    const int64_t maxTextureArea = static_cast<int64_t>(atlasPixelArea * MAX_ATLAS_TEXTURE_COVERAGE);
+    const float cobertura = m_type == Fw::TextureAtlasType::MAP ? MAX_MAP_ATLAS_TEXTURE_COVERAGE : MAX_ATLAS_TEXTURE_COVERAGE;
+    const int64_t maxTextureArea = static_cast<int64_t>(atlasPixelArea * cobertura);
 
     // Maximum texture area relative to the atlas
     return static_cast<int64_t>(paddedWidth) * paddedHeight <= maxTextureArea;

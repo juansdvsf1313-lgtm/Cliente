@@ -35,6 +35,10 @@ public:
 
     virtual void create();
     void uploadPixels(const ImagePtr& image, bool buildMipmaps = false, bool compress = false);
+
+    // glDeleteTextures de todo lo destruido desde el ultimo fotograma, en UNA
+    // llamada. Solo hilo principal; lo llama DrawPoolManager::draw().
+    static void borrarPendientes();
     void updateImage(const ImagePtr& image);
     void updatePixels(uint8_t* pixels, int level = 0, int channels = 4, bool compress = false);
 

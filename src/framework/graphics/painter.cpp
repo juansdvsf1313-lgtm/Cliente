@@ -21,6 +21,7 @@
  */
 
 #include "painter.h"
+#include <atomic>
 
 #include "framework/graphics/texture.h"
 #include "framework/graphics/texturemanager.h"
@@ -74,6 +75,9 @@ Painter::Painter()
     PainterShaderProgram::enableAttributeArray(PainterShaderProgram::TEXCOORD_ATTR);
 }
 
+static std::atomic_uint32_t s_drawCalls{ 0 };
+uint32_t Painter::takeDrawCalls() { return s_drawCalls.exchange(0, std::memory_order_relaxed); }
+
 void Painter::drawCoords(const CoordsBuffer& coordsBuffer, DrawMode drawMode)
 {
     const int vertexCount = coordsBuffer.getVertexCount();
@@ -109,6 +113,7 @@ void Painter::drawCoords(const CoordsBuffer& coordsBuffer, DrawMode drawMode)
 
     // draw the element in coords buffers
     glDrawArrays(static_cast<GLenum>(drawMode), 0, vertexCount);
+    s_drawCalls.fetch_add(1, std::memory_order_relaxed);
 
     if (!textured)
         PainterShaderProgram::enableAttributeArray(PainterShaderProgram::TEXCOORD_ATTR);

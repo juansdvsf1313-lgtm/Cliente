@@ -35,6 +35,10 @@ public:
     void clearRect(const Color& color, const Rect& rect);
 
     void drawCoords(const CoordsBuffer& coordsBuffer, DrawMode drawMode = DrawMode::TRIANGLES);
+
+    // Diagnostico: glDrawArrays emitidos desde la ultima lectura (los lee el pool
+    // una vez por fotograma para saber cuantos lotes salen por fotograma).
+    static uint32_t takeDrawCalls();
     void drawLine(const std::vector<float>& vertex, int size, int width) const;
 
     float getOpacity() const { return m_opacity; }

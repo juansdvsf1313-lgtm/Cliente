@@ -21,6 +21,8 @@
  */
 
 #include "texture.h"
+#include <vector>
+#include <framework/util/stats.h>
 
 #include "drawpoolmanager.h"
 #include "graphics.h"
@@ -63,15 +65,43 @@ Texture::Texture(const ImagePtr& image, const bool buildMipmaps, const bool comp
     setupSize(image->getSize());
 }
 
+// glGenTextures y glDeleteTextures son puntos de sincronizacion con el hilo del
+// driver (con la "optimizacion multihilo" de NVIDIA el programa espera a que el
+// driver vacie su cola). Con la cola llena a 500 fps, crear una textura de 64x64
+// llegaba a costar 4-5 ms, y borrar cientos en el mismo poll ~100 ms. Los nombres
+// se reservan de 64 en 64 y los borrados se juntan en una llamada por fotograma.
+// Ambos vectores se tocan solo desde el hilo principal.
+static std::vector<GLuint> s_nombresLibres;
+static std::vector<GLuint> s_nombresPorBorrar;
+
+static GLuint tomarNombreDeTextura()
+{
+    if (s_nombresLibres.empty()) {
+        s_nombresLibres.resize(64);
+        glGenTextures(64, s_nombresLibres.data());
+    }
+    const GLuint id = s_nombresLibres.back();
+    s_nombresLibres.pop_back();
+    return id;
+}
+
+void Texture::borrarPendientes()
+{
+    if (s_nombresPorBorrar.empty())
+        return;
+    glDeleteTextures(static_cast<GLsizei>(s_nombresPorBorrar.size()), s_nombresPorBorrar.data());
+    s_nombresPorBorrar.clear();
+}
+
 Texture::~Texture()
 {
 #ifndef NDEBUG
     assert(!g_app.isTerminated());
 #endif
     if (g_graphics.ok() && m_id != 0) {
-        g_mainDispatcher.addEvent([id = m_id, smooth = isSmooth()]() mutable {
+        g_mainDispatcher.addEvent([id = m_id, smooth = isSmooth()] {
             g_drawPool.removeTextureFromAtlas(id, smooth);
-            glDeleteTextures(1, &id);
+            s_nombresPorBorrar.emplace_back(id);
         });
     }
     g_stats.removeTexture();
@@ -80,6 +110,9 @@ Texture::~Texture()
 void Texture::create()
 {
     if (m_image) {
+        // Trazador de fotogramas lentos: un atlas de outfit HD son 8 MB de glTexImage2D.
+        AutoStat medida(STATS_GENERAL, "SubirTextura",
+                        std::to_string(m_image->getWidth()) + "x" + std::to_string(m_image->getHeight()));
         createTexture();
         uploadPixels(m_image, getProp(buildMipmaps), getProp(compress));
         m_image = nullptr;
@@ -176,9 +209,9 @@ void Texture::setUpsideDown(const bool upsideDown)
 void Texture::createTexture()
 {
     if (g_graphics.ok() && m_id != 0)
-        glDeleteTextures(1, &m_id);
+        s_nombresPorBorrar.emplace_back(m_id);
 
-    glGenTextures(1, &m_id);
+    m_id = tomarNombreDeTextura();
     assert(m_id != 0);
 
     generateHash();
