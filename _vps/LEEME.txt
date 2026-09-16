@@ -1,0 +1,12 @@
+Copias de lo que vive en el VPS y no en el cliente
+==================================================
+
+Estos ficheros NO los usa el cliente: son una copia de seguridad de codigo que
+solo existe en el VPS (162.35.181.86). Ya se perdio trabajo una vez por no
+tenerlo aqui.
+
+  updater.php  ->  /var/www/canary1530/updater.php
+
+Al cambiarlos en el VPS, copiarlos tambien aqui. Lo que NO esta en esta carpeta
+y tambien vive solo alli: /root/pack-client.sh, /root/pack-hd.sh,
+/root/update-canary.sh y el init.lua parcheado con la IP.
