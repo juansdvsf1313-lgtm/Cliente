@@ -37,6 +37,16 @@
 #endif
 #include <iostream>
 #include <ctime>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <cstdio>
+#endif
 
 #ifndef ANDROID
 #if ENABLE_DISCORD_RPC == 1
@@ -111,6 +121,20 @@ std::string buildStartupTimestamp()
 int main(const int argc, const char* argv[])
 {
     std::vector<std::string> args(argv, argv + argc);
+
+#ifdef _WIN32
+    // Los jugadores reciben el exe sin consola (/SUBSYSTEM:WINDOWS). Con --console
+    // se abre una y se le redirige la salida estandar: es el modo desarrollador,
+    // que ademas activa el terminal Lua del juego (Application::isDevMode).
+    if (std::find(args.begin(), args.end(), "--console") != args.end() && AllocConsole()) {
+        FILE* f = nullptr;
+        freopen_s(&f, "CONOUT$", "w", stdout);
+        freopen_s(&f, "CONOUT$", "w", stderr);
+        freopen_s(&f, "CONIN$", "r", stdin);
+        SetConsoleOutputCP(CP_UTF8);
+    }
+#endif
+
     g_logger.info("Application started at {}", buildStartupTimestamp());
 
     // process args encoding

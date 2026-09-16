@@ -73,6 +73,13 @@ public:
     std::string getOs();
     std::string getStartupOptions() { return m_startupOptions; }
 
+    // Modo desarrollador: arrancado con --console (o --dev). Los jugadores no lo
+    // tienen; Lua lo consulta para no ofrecer el terminal ni otras herramientas.
+    bool isDevMode() const {
+        return m_startupOptions.find("--console") != std::string::npos
+            || m_startupOptions.find("--dev") != std::string::npos;
+    }
+
 protected:
     void registerLuaFunctions();
 

@@ -1,0 +1,12 @@
+The One - Copyright (C) 2026 The One. Todos los derechos reservados.
+====================================================================
+
+Este cliente, sus graficos propios, scripts, datos, configuracion y
+personalizaciones son propiedad de The One. No esta permitido copiarlos,
+modificarlos, redistribuirlos ni usarlos para otro servidor o producto sin
+autorizacion escrita de The One.
+
+El programa se basa en OTClient (edubart / mehah), distribuido bajo licencia
+MIT: el texto de esa licencia y su aviso de copyright se conservan en el
+fichero LICENSE, tal como exige la MIT. Esa licencia cubre el codigo original
+de OTClient, no los contenidos ni las modificaciones de The One.

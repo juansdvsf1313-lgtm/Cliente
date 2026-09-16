@@ -1096,7 +1096,10 @@ if(WIN32)
           PROPERTIES
           LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE"
           LINK_FLAGS_RELEASE "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
-          LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE"
+          # TheOne: RelWithDebInfo es lo que compila el preset windows-release y es
+          # lo que reciben los jugadores: sin consola. En desarrollo se abre una
+          # con `otclient.exe --console` (ver main.cpp).
+          LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
           LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
   )
 endif(WIN32)

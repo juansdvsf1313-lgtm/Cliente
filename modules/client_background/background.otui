@@ -22,6 +22,20 @@ Panel
     color: #ffffff
     font: verdana-11px-monochrome
 
+  // Sello de copyright de The One en la pantalla de entrada (el panel entero
+  // se oculta al entrar al juego, asi que no hace falta gestionarlo en Lua).
+  UILabel
+    id: copyrightLabel
+    background-color: #00000099
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    text-align: center
+    text-auto-resize: true
+    padding: 3
+    color: #ffffff
+    font: verdana-11px-monochrome
+    text: Copyright (C) 2026 The One - Todos los derechos reservados
+
   UIParticles
     id: particles
     effect: background-effect

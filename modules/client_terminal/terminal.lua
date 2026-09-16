@@ -142,7 +142,17 @@ local function onLog(level, message, time)
 end
 
 -- public functions
+-- Cliente comercial: el terminal Lua (Ctrl+T) solo existe en modo desarrollador
+-- (otclient.exe --console). En el cliente de los jugadores el modulo carga pero
+-- no crea nada, y todas sus funciones salen sin hacer nada.
+local desactivado = false
+
 function init()
+    if g_app.isDevMode and not g_app.isDevMode() then
+        desactivado = true
+        return
+    end
+
     terminalWindow = g_ui.displayUI('terminal')
     terminalWindow:setVisible(false)
 
@@ -204,6 +214,7 @@ function init()
 end
 
 function terminate()
+    if desactivado then return end
     g_settings.setList('terminal-history', commandHistory)
 
     removeEvent(flushEvent)
@@ -231,10 +242,12 @@ function terminate()
 end
 
 function hideButton()
+    if desactivado then return end
     terminalButton:hide()
 end
 
 function popWindow()
+    if desactivado then return end
     if poped then
         oldPos = terminalWindow:getPosition()
         oldSize = terminalWindow:getSize()
@@ -272,6 +285,7 @@ function popWindow()
 end
 
 function toggle()
+    if desactivado then return end
     if terminalWindow:isVisible() then
         hide()
     else
@@ -295,6 +309,7 @@ function toggle()
 end
 
 function show()
+    if desactivado then return end
     terminalWindow:show()
     terminalWindow:raise()
     terminalWindow:focus()
@@ -305,6 +320,7 @@ function show()
 end
 
 function hide()
+    if desactivado then return end
     terminalWindow:hide()
     if terminalButton then
         terminalButton:setOn(false)
@@ -312,11 +328,13 @@ function hide()
 end
 
 function disable()
+    if desactivado then return end
     terminalButton:hide()
     disabled = true
 end
 
 function flushLines()
+    if desactivado then return end
     local fulltext = terminalSelectText:getText()
 
     local start = #cachedLines + 1 - MaxLogLines
@@ -358,6 +376,7 @@ function flushLines()
 end
 
 function addLine(text, color)
+    if desactivado then return end
     text = string.gsub(text, '\t', '    ')
     table.insert(cachedLines, {
         text = text,
@@ -370,6 +389,7 @@ function addLine(text, color)
 end
 
 function executeCommand(command)
+    if desactivado then return end
     if command == nil or #string.gsub(command, '\n', '') == 0 then
         return
     end
@@ -436,6 +456,7 @@ function executeCommand(command)
 end
 
 function clear()
+    if desactivado then return end
     terminalBuffer:destroyChildren()
     terminalSelectText:setText('')
     cachedLines = {}
