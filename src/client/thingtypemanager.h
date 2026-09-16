@@ -83,6 +83,7 @@ public:
     // como metodos del singleton (los de ThingType son estaticos).
     std::string getSkipStats() const { return ThingType::getSkipStats(); }
     void resetSkipStats() const { ThingType::resetSkipStats(); }
+    std::string getCeldasStats() const { return ThingType::getCeldasStats(); }
 
     uint32_t getDatSignature() { return m_datSignature; }
     uint16_t getContentRevision() { return m_contentRevision; }

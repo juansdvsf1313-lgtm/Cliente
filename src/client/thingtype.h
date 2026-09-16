@@ -200,7 +200,13 @@ public:
         for (auto& data : m_textureData) {
             data.source = nullptr;
         }
-        m_celdasPrevia.reset();
+        // Las celdas se sueltan pero el contenedor se queda: otro hilo de dibujado
+        // puede estar usandolo ahora mismo (ver ThingType::celdas()).
+        if (const auto c = m_celdas.load(std::memory_order_acquire)) {
+            std::lock_guard<std::mutex> lock(c->mutex);
+            c->mapa.clear();
+            m_numCeldas.store(0, std::memory_order_relaxed);
+        }
     }
 
     PLAYER_ACTION getDefaultAction() { return m_defaultAction; }
@@ -228,13 +234,15 @@ public:
     static void encolarHojas(std::vector<SpriteSheetPtr>&& hojas);
 
     // Modo vista previa (UICreature: ventana de outfits, lista de batalla...).
-    // Con el modo activo en este hilo, draw() de una criatura pinta desde una
-    // textura pequena con las 5 capas de UNA celda (direccion/addons/montura/
-    // fase) compuesta en segundo plano, en vez de la rejilla completa por fase:
-    // en HD un outfit son 8 MB por fase, y la ventana de outfits pedia 130.
+    // Las criaturas se pintan SIEMPRE desde celdas (ver ThingType::Celda en el
+    // .cpp); este modo solo decide que sean las suavizadas del interfaz, que se
+    // reducen, en vez de las del mapa.
     static void setModoVistaPrevia(bool activo);
     static bool enModoVistaPrevia();
-    bool tieneCeldasPrevia() const { return m_celdasPrevia != nullptr; }
+    bool tieneCeldas() const { return m_numCeldas.load(std::memory_order_relaxed) > 0; }
+    // Diagnostico: celdas vivas, MB que ocupan y rejillas completas de criatura
+    // compuestas (deberia quedarse en 0).
+    static std::string getCeldasStats();
 
     // Diagnostico: veces que draw() no pinto un objeto por no tener textura lista
     // (ni la fase pedida ni la 0). Bajo tierra eso deja ver el fondo negro.
@@ -293,33 +301,42 @@ private:
 
     void loadTexture(int animationPhase);
 
-    // Celdas de vista previa (ver setModoVistaPrevia). Cada celda: las capas
-    // (base + 4 mascaras) de una combinacion direccion/addons/montura/fase,
-    // una al lado de otra en una textura pequena, con el mismo recorte de
-    // bordes transparentes que la rejilla grande.
-    struct CapaPrevia
+    // Celdas de criatura (ver el comentario en thingtype.cpp). Cada celda guarda
+    // las capas (base + 4 mascaras) de una combinacion direccion/addon/montura/
+    // fase, una al lado de otra, con el mismo recorte que la rejilla grande.
+    struct CapaCelda
     {
         Rect rect;      // en la textura de la celda, ya recortada
         Rect origin;    // la celda entera
         Point offset;   // rect.topLeft() - origin.topLeft()
     };
-    struct CeldaPrevia
+    struct Celda
     {
+        Celda();
+        ~Celda();
         std::atomic_bool lista{ false };
         std::atomic_bool componiendo{ false };
+        std::atomic<int64_t> ultimoUso{ 0 };   // stdext::millis() de la ultima vez que se pinto
+        int64_t bytes{ 0 };
         TexturePtr texture;
-        std::array<CapaPrevia, 5> capas{};
+        std::array<CapaCelda, 5> capas{};
     };
-    struct CeldasPrevia
+    struct Celdas
     {
         std::mutex mutex;
-        std::unordered_map<uint32_t, std::shared_ptr<CeldaPrevia>> celdas;
+        std::unordered_map<uint32_t, std::shared_ptr<Celda>> mapa;
     };
-    std::unique_ptr<CeldasPrevia> m_celdasPrevia;
+    // Dueno del contenedor (se crea la primera vez que hace falta y vive lo que el
+    // ThingType) y puntero para leerlo sin candado desde los hilos de dibujado.
+    std::unique_ptr<Celdas> m_celdasPropias;
+    std::atomic<Celdas*> m_celdas{ nullptr };
 
-    std::shared_ptr<CeldaPrevia> obtenerCeldaPrevia(int x, int y, int z, int fase);
-    void componerCeldaPrevia(const std::shared_ptr<CeldaPrevia>& celda, int x, int y, int z, int fase);
-    void drawCeldaPrevia(const Point& dest, int layer, int x, int y, int z, int fase, const Color& color);
+    Celdas& celdas();
+    std::shared_ptr<Celda> buscarCelda(int x, int y, int z, int fase, bool suave);
+    std::shared_ptr<Celda> obtenerCelda(int x, int y, int z, int fase, bool suave);
+    bool componerSiHaceFalta(const std::shared_ptr<Celda>& celda, int x, int y, int z, int fase, bool suave);
+    void componerCelda(const std::shared_ptr<Celda>& celda, int x, int y, int z, int fase, bool suave);
+    void drawCelda(const Point& dest, int layer, int x, int y, int z, int fase, const Color& color, bool drawThings, LightView* lightView);
 
     struct TextureData
     {
@@ -394,6 +411,7 @@ private:
     std::vector<TextureData> m_textureData;
 
     std::atomic_bool m_loading{ false };
+    std::atomic<int> m_numCeldas{ 0 };   // celdas vivas de este tipo (para el recolector)
 
     Timer m_lastTimeUsage;
 

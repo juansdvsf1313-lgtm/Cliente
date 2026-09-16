@@ -115,7 +115,7 @@ void GarbageCollection::thingType() {
 
     while (index < limit && descargadas < MAX_DESCARGAS_POR_PASADA) {
         auto& thing = thingTypes[index];
-        if ((thing->hasTexture() || thing->tieneCeldasPrevia()) && thing->getLastTimeUsage().ticksElapsed() > IDLE_TIME) {
+        if ((thing->hasTexture() || thing->tieneCeldas()) && thing->getLastTimeUsage().ticksElapsed() > IDLE_TIME) {
             thing->unload();
             ++descargadas;
         }

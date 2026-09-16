@@ -795,9 +795,10 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
     // this line fixes a bug that makes them disappear while moving
     int animationFrameId = animationPhase % m_animationPhases;
 
-    // Vista previa: celda pequena en vez de la rejilla completa (ver .h).
-    if (t_modoVistaPrevia && m_category == ThingCategoryCreature && drawThings && !lightView) {
-        drawCeldaPrevia(dest, layer, xPattern, yPattern, zPattern, animationFrameId, color);
+    // Criaturas: desde una celda pequena, nunca desde la rejilla completa (ver
+    // ThingType::Celda mas abajo).
+    if (m_category == ThingCategoryCreature) {
+        drawCelda(dest, layer, xPattern, yPattern, zPattern, animationFrameId, color, drawThings, lightView);
         return;
     }
 
@@ -961,37 +962,154 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
 void ThingType::setModoVistaPrevia(const bool activo) { t_modoVistaPrevia = activo; }
 bool ThingType::enModoVistaPrevia() { return t_modoVistaPrevia; }
 
-std::shared_ptr<ThingType::CeldaPrevia> ThingType::obtenerCeldaPrevia(const int x, const int y, const int z, const int fase)
+// ---------------------------------------------------------------------------
+// Celdas de criatura
+//
+// Una criatura (outfit, montura) no se pinta desde la rejilla completa de su
+// ThingType -todas las direcciones x addons x monturas x 5 capas, una textura
+// por fase de animacion: en HD 8 MB por fase y hasta 72 MB por outfit- sino
+// desde celdas: las 5 capas de UNA combinacion direccion/addon/montura/fase en
+// una textura pequena (~0,3 MB en HD). Se componen en segundo plano cuando hacen
+// falta y caben en el atlas del mapa: ni subidas de 8 MB al aparecer gente ni
+// una textura suelta, y un cambio de lote, por criatura.
+//
+// Las vistas previas del interfaz (UICreature) usan celdas suavizadas, porque se
+// reducen; las del mapa van sin suavizar, como el resto de sprites.
+// ---------------------------------------------------------------------------
+static std::atomic<int64_t> s_celdasVivas{ 0 };
+static std::atomic<int64_t> s_celdasBytes{ 0 };
+static std::atomic<int64_t> s_rejillasCriatura{ 0 };
+static std::mutex s_mutexCrearCeldas;
+
+// Cupo por tipo: un jugador con addons caminando en las 4 direcciones puede usar
+// 3 capas x 4 direcciones x 9 fases. Por encima se descarta la celda que lleve
+// mas tiempo sin pintarse, nunca las de fase 0 (son el respaldo mientras se
+// compone la fase pedida) ni las que se esten componiendo.
+static constexpr size_t MAX_CELDAS_POR_TIPO = 96;
+static constexpr int64_t CELDA_SIN_USO_MS = 5000;
+
+ThingType::Celda::Celda() { s_celdasVivas.fetch_add(1, std::memory_order_relaxed); }
+
+ThingType::Celda::~Celda()
 {
-    if (!m_celdasPrevia)
-        m_celdasPrevia = std::make_unique<CeldasPrevia>();
+    s_celdasVivas.fetch_sub(1, std::memory_order_relaxed);
+    s_celdasBytes.fetch_sub(bytes, std::memory_order_relaxed);
+}
 
-    const uint32_t clave = (static_cast<uint32_t>(fase & 0xFF)) | (static_cast<uint32_t>(z & 0xFF) << 8)
-        | (static_cast<uint32_t>(y & 0xFF) << 16) | (static_cast<uint32_t>(x & 0xFF) << 24);
+std::string ThingType::getCeldasStats()
+{
+    return "celdas=" + std::to_string(s_celdasVivas.load(std::memory_order_relaxed)) +
+        " celdas_mb=" + std::to_string(s_celdasBytes.load(std::memory_order_relaxed) / 1048576) +
+        " rejillas_criatura=" + std::to_string(s_rejillasCriatura.load(std::memory_order_relaxed));
+}
 
-    std::shared_ptr<CeldaPrevia> celda;
-    {
-        std::lock_guard<std::mutex> lock(m_celdasPrevia->mutex);
-        auto& ref = m_celdasPrevia->celdas[clave];
-        if (!ref)
-            ref = std::make_shared<CeldaPrevia>();
-        celda = ref;
+ThingType::Celdas& ThingType::celdas()
+{
+    if (const auto c = m_celdas.load(std::memory_order_acquire))
+        return *c;
+
+    // Lo piden a la vez el hilo del mapa, el del interfaz y el de la informacion
+    // de criaturas: se crea una sola vez y ya no se destruye (ver unload()).
+    std::lock_guard<std::mutex> lock(s_mutexCrearCeldas);
+    if (!m_celdasPropias) {
+        m_celdasPropias = std::make_unique<Celdas>();
+        m_celdas.store(m_celdasPropias.get(), std::memory_order_release);
     }
+    return *m_celdasPropias;
+}
+
+static uint32_t claveCelda(const int x, const int y, const int z, const int fase, const bool suave)
+{
+    return static_cast<uint32_t>(fase & 0xFF) | (static_cast<uint32_t>(z & 0xFF) << 8)
+        | (static_cast<uint32_t>(y & 0xFF) << 16) | (static_cast<uint32_t>(x & 0x7F) << 24)
+        | (suave ? 0x80000000u : 0u);
+}
+
+std::shared_ptr<ThingType::Celda> ThingType::buscarCelda(const int x, const int y, const int z, const int fase, const bool suave)
+{
+    auto& c = celdas();
+    const uint32_t clave = claveCelda(x, y, z, fase, suave);
+
+    std::lock_guard<std::mutex> lock(c.mutex);
+    if (const auto it = c.mapa.find(clave); it != c.mapa.end())
+        return it->second;
+
+    if (c.mapa.size() >= MAX_CELDAS_POR_TIPO) {
+        int64_t masAntigua = stdext::millis() - CELDA_SIN_USO_MS;
+        auto victima = c.mapa.end();
+        for (auto it = c.mapa.begin(); it != c.mapa.end(); ++it) {
+            if ((it->first & 0xFF) == 0 || it->second->componiendo.load(std::memory_order_acquire))
+                continue;
+            const int64_t uso = it->second->ultimoUso.load(std::memory_order_relaxed);
+            if (uso < masAntigua) {
+                masAntigua = uso;
+                victima = it;
+            }
+        }
+        // Si todas estan en uso se pasa del cupo: mejor mas memoria que parpadeos.
+        if (victima != c.mapa.end())
+            c.mapa.erase(victima);
+    }
+
+    auto nueva = std::make_shared<Celda>();
+    nueva->ultimoUso.store(stdext::millis(), std::memory_order_relaxed);
+    c.mapa.emplace(clave, nueva);
+    m_numCeldas.store(static_cast<int>(c.mapa.size()), std::memory_order_relaxed);
+    return nueva;
+}
+
+// Compone la celda aqui si esta sin hacer y nadie la esta componiendo ya.
+bool ThingType::componerSiHaceFalta(const std::shared_ptr<Celda>& celda, const int x, const int y, const int z, const int fase, const bool suave)
+{
+    bool esperado = false;
+    if (celda->lista.load(std::memory_order_acquire)
+        || !celda->componiendo.compare_exchange_strong(esperado, true, std::memory_order_acq_rel))
+        return false;
+
+    componerCelda(celda, x, y, z, fase, suave);
+    celda->componiendo.store(false, std::memory_order_release);
+    return celda->lista.load(std::memory_order_acquire);
+}
+
+std::shared_ptr<ThingType::Celda> ThingType::obtenerCelda(const int x, const int y, const int z, const int fase, const bool suave)
+{
+    auto celda = buscarCelda(x, y, z, fase, suave);
 
     bool esperado = false;
-    if (!celda->lista.load(std::memory_order_acquire) && celda->componiendo.compare_exchange_strong(esperado, true, std::memory_order_acq_rel)) {
-        g_asyncDispatcher->detach_task([this, celda, x, y, z, fase] {
-            componerCeldaPrevia(celda, x, y, z, fase);
-            celda->componiendo.store(false, std::memory_order_release);
-        });
-    }
+    if (celda->lista.load(std::memory_order_acquire)
+        || !celda->componiendo.compare_exchange_strong(esperado, true, std::memory_order_acq_rel))
+        return celda;
+
+    // self: el ThingType tiene que vivir mientras dure la tarea (cambiar entre SD
+    // y HD recarga todos los tipos).
+    g_asyncDispatcher->detach_task([self = static_self_cast<ThingType>(), celda, x, y, z, fase, suave] {
+        self->componerCelda(celda, x, y, z, fase, suave);
+        celda->componiendo.store(false, std::memory_order_release);
+        if (!celda->lista.load(std::memory_order_acquire) || suave)
+            return;
+
+        // Lo siguiente que va a hacer falta casi seguro. Al aparecer (fase 0): las
+        // otras direcciones, para que girar no deje la criatura sin pintar un
+        // instante. Al empezar a caminar: el resto de fases de esa direccion.
+        if (fase == 0) {
+            for (int x2 = 0; x2 < self->m_numPatternX; ++x2) {
+                if (x2 != x)
+                    self->componerSiHaceFalta(self->buscarCelda(x2, y, z, 0, false), x2, y, z, 0, false);
+            }
+        } else {
+            for (int f2 = 1; f2 < self->m_animationPhases; ++f2) {
+                if (f2 != fase)
+                    self->componerSiHaceFalta(self->buscarCelda(x, y, z, f2, false), x, y, z, f2, false);
+            }
+        }
+    });
     return celda;
 }
 
 // Compone una celda: misma logica que loadTexture() para una sola combinacion
 // de patrones, con las capas una al lado de otra. Corre en un hilo del pool;
 // si falta una hoja se espera a que llegue (aqui esperar no congela nada).
-void ThingType::componerCeldaPrevia(const std::shared_ptr<CeldaPrevia>& celda, const int x, const int y, const int z, const int fase)
+void ThingType::componerCelda(const std::shared_ptr<Celda>& celda, const int x, const int y, const int z, const int fase, const bool suave)
 {
     static const Color maskColors[] = { Color::red, Color::green, Color::blue, Color::yellow };
 
@@ -1071,24 +1189,37 @@ void ThingType::componerCeldaPrevia(const std::shared_ptr<CeldaPrevia>& celda, c
     }
 
     celda->texture = std::make_shared<Texture>(imagen, false, false);
-    // Suavizado: las vistas previas se reducen (128 -> 64 px en la lista) y sin
-    // filtro lineal se verian dentadas; el framebuffer de antes ya filtraba.
-    celda->texture->setSmooth(true);
+    // Suavizado solo en las del interfaz: las vistas previas se reducen (128 -> 64
+    // px en la lista) y sin filtro lineal se verian dentadas. Las del mapa van
+    // sin suavizar, como el resto de sprites.
+    if (suave)
+        celda->texture->setSmooth(true);
     celda->texture->allowAtlasCache();
+    celda->bytes = static_cast<int64_t>(imagen->getSize().width()) * imagen->getSize().height() * 4;
+    s_celdasBytes.fetch_add(celda->bytes, std::memory_order_relaxed);
     celda->lista.store(true, std::memory_order_release);
 }
 
-void ThingType::drawCeldaPrevia(const Point& dest, const int layer, const int x, const int y, const int z, const int fase, const Color& color)
+void ThingType::drawCelda(const Point& dest, const int layer, const int x, const int y, const int z, const int fase, const Color& color, const bool drawThings, LightView* lightView)
 {
+    // La pasada de luz solo necesita la celda si el tipo emite luz (un outfit casi
+    // nunca): asi no crea ni manda componer nada desde el hilo de la luz.
+    const bool conLuz = lightView && hasLight();
+    if (!drawThings && !conLuz) {
+        g_drawPool.resetOnlyOnceParameters();
+        return;
+    }
+
     if (layer > 0 && m_layers < 2) {
         g_drawPool.resetOnlyOnceParameters();
         return; // este outfit no tiene mascaras de color
     }
 
-    auto celda = obtenerCeldaPrevia(x, y, z, fase);
+    const bool suave = t_modoVistaPrevia;
+    auto celda = obtenerCelda(x, y, z, fase, suave);
     if (!celda->lista.load(std::memory_order_acquire) && fase != 0) {
-        // como en draw(): mientras se construye la fase pedida, se ensena la 0
-        celda = obtenerCeldaPrevia(x, y, z, 0);
+        // como con la rejilla: mientras se construye la fase pedida, se ensena la 0
+        celda = obtenerCelda(x, y, z, 0, suave);
     }
     if (!celda->lista.load(std::memory_order_acquire)) {
         g_drawPool.resetOnlyOnceParameters();
@@ -1096,16 +1227,24 @@ void ThingType::drawCeldaPrevia(const Point& dest, const int layer, const int x,
     }
 
     m_lastTimeUsage.restart();
+    celda->ultimoUso.store(stdext::millis(), std::memory_order_relaxed);
 
     const auto& capa = celda->capas[std::clamp<int>(layer, 0, 4)];
     const Rect screenRect(dest + (capa.offset - m_displacement - (m_size.toPoint() - Point(1)) * g_gameConfig.getSpriteSize()) * g_drawPool.getScaleFactor(),
                           capa.rect.size() * g_drawPool.getScaleFactor());
-    const auto& newColor = m_opacity < 1.0f ? Color(color, m_opacity) : color;
 
-    if (g_drawPool.shaderNeedFramebuffer())
-        drawWithFrameBuffer(celda->texture, screenRect, capa.rect, newColor);
-    else
-        g_drawPool.addTexturedRect(screenRect, celda->texture, capa.rect, newColor);
+    if (drawThings) {
+        const auto& newColor = m_opacity < 1.0f ? Color(color, m_opacity) : color;
+        if (g_drawPool.shaderNeedFramebuffer())
+            drawWithFrameBuffer(celda->texture, screenRect, capa.rect, newColor);
+        else
+            g_drawPool.addTexturedRect(screenRect, celda->texture, capa.rect, newColor);
+    } else {
+        g_drawPool.resetOnlyOnceParameters();
+    }
+
+    if (conLuz)
+        lightView->addLightSource(screenRect.center(), m_light);
 }
 
 void ThingType::preload()
@@ -1117,7 +1256,7 @@ void ThingType::preload()
     // que hay que adelantar es la celda que muestra la lista (mirando al sur, sin
     // addons ni montura, fase 0), no la rejilla de 8 MB.
     if (m_category == ThingCategoryCreature) {
-        obtenerCeldaPrevia(Otc::South, 0, 0, 0);
+        obtenerCelda(Otc::South, 0, 0, 0, true);
         return;
     }
 
@@ -1264,6 +1403,11 @@ void ThingType::loadTexture(const int animationPhase)
     auto& textureData = m_textureData[animationPhase];
     if (textureData.source)
         return;
+
+    // Con las celdas no deberia componerse ninguna rejilla de criatura: si este
+    // contador sube, algun camino sigue pidiendo la grande (ver getCeldasStats).
+    if (m_category == ThingCategoryCreature)
+        s_rejillasCriatura.fetch_add(1, std::memory_order_relaxed);
 
     // we don't need layers in common items, they will be pre-drawn
     int textureLayers = 1;
@@ -1535,10 +1679,10 @@ int ThingType::getExactSize(const int layer, const int xPattern, const int yPatt
     if (m_null)
         return 0;
 
-    // En vista previa se calcula desde la celda: pedir la rejilla grande solo
-    // para medir volveria a componer los 8 MB que este modo evita.
-    if (t_modoVistaPrevia && m_category == ThingCategoryCreature && m_animationPhases > 0) {
-        const auto& celda = obtenerCeldaPrevia(xPattern, yPattern, zPattern, animationPhase % m_animationPhases);
+    // Criaturas: se mide en la celda. Pedir la rejilla grande solo para medir
+    // volveria a componer los 8 MB por fase que las celdas evitan.
+    if (m_category == ThingCategoryCreature && m_animationPhases > 0) {
+        const auto& celda = obtenerCelda(xPattern, yPattern, zPattern, animationPhase % m_animationPhases, t_modoVistaPrevia);
         if (!celda->lista.load(std::memory_order_acquire))
             return 0;
         const auto& capa = celda->capas[std::clamp<int>(layer, 0, 4)];
@@ -1572,6 +1716,16 @@ int ThingType::getExactHeight()
 
     if (m_exactHeight != 0)
         return m_exactHeight;
+
+    // Criaturas: desde la celda (ver ThingType::Celda). Si aun no esta se
+    // devuelve 0 sin guardarlo y se vuelve a pedir en el siguiente fotograma.
+    if (m_category == ThingCategoryCreature && m_animationPhases > 0) {
+        const auto& celda = obtenerCelda(0, 0, 0, 0, t_modoVistaPrevia);
+        if (!celda->lista.load(std::memory_order_acquire))
+            return 0;
+        const auto& capa = celda->capas[0];
+        return m_exactHeight = (capa.origin.size() - capa.offset.toSize()).height();
+    }
 
     getTexture(0);
     const int frameIndex = getTextureIndex(0, 0, 0, 0);

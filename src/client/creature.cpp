@@ -84,12 +84,20 @@ void Creature::draw(const Point& dest, const bool drawThings, LightView* /*light
     const auto walkPx = getWalkOffsetScaled(g_drawPool.getScaleFactor());
 
     if (drawThings) {
+        // Marcas de la criatura. Las medidas originales (margen 2, lado 28, borde 2 y
+        // 3) son de sprites de 32 px: en HD la casilla mide 64 y el cuadro de "te
+        // esta atacando" salia a menos de la mitad, pegado arriba a la izquierda,
+        // sin rodear al bicho. Se escalan con el tamano de sprite.
+        const int escalaSprite = std::max<int>(g_gameConfig.getSpriteSize() / 32, 1);
+
         if (m_showTimedSquare) {
-            g_drawPool.addBoundingRect(Rect(dest + walkPx + (Point(2) - getDisplacement()) * g_drawPool.getScaleFactor(), Size(28 * g_drawPool.getScaleFactor())), m_timedSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
+            const int margen = 2 * escalaSprite;
+            const int lado = g_gameConfig.getSpriteSize() - margen * 2;
+            g_drawPool.addBoundingRect(Rect(dest + walkPx + (Point(margen) - getDisplacement()) * g_drawPool.getScaleFactor(), Size(lado * g_drawPool.getScaleFactor())), m_timedSquareColor, std::max<int>(static_cast<int>(2 * escalaSprite * g_drawPool.getScaleFactor()), 1));
         }
 
         if (m_showStaticSquare) {
-            g_drawPool.addBoundingRect(Rect(dest + walkPx - getDisplacement() * g_drawPool.getScaleFactor(), Size(g_gameConfig.getSpriteSize() * g_drawPool.getScaleFactor())), m_staticSquareColor, std::max<int>(static_cast<int>(3 * g_drawPool.getScaleFactor()), 1));
+            g_drawPool.addBoundingRect(Rect(dest + walkPx - getDisplacement() * g_drawPool.getScaleFactor(), Size(g_gameConfig.getSpriteSize() * g_drawPool.getScaleFactor())), m_staticSquareColor, std::max<int>(static_cast<int>(3 * escalaSprite * g_drawPool.getScaleFactor()), 1));
         }
 
         auto _dest = dest + walkPx;
