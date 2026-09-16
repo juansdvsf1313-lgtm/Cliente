@@ -99,6 +99,7 @@ public:
     void repaint() { m_hashCtrl.forceUpdate(); m_refreshTimer.update(-1000); }
     void resetState();
     void scale(float factor);
+    float getScale() const { return m_scale; }   // factor actual de la matriz de escala (scale())
 
     void agroup(const bool agroup) { m_alwaysGroupDrawings = agroup; }
 

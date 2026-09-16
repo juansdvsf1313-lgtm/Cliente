@@ -25,6 +25,11 @@
 #include "declarations.h"
 #ifdef FRAMEWORK_PROTOBUF
 #include <appearances.pb.h>
+#include <array>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 #endif
 
 #include "staticdata.h"
@@ -195,6 +200,7 @@ public:
         for (auto& data : m_textureData) {
             data.source = nullptr;
         }
+        m_celdasPrevia.reset();
     }
 
     PLAYER_ACTION getDefaultAction() { return m_defaultAction; }
@@ -220,6 +226,15 @@ public:
     void precalentarHojas();
     // Cola de precarga con un solo lector de disco (ver el .cpp).
     static void encolarHojas(std::vector<SpriteSheetPtr>&& hojas);
+
+    // Modo vista previa (UICreature: ventana de outfits, lista de batalla...).
+    // Con el modo activo en este hilo, draw() de una criatura pinta desde una
+    // textura pequena con las 5 capas de UNA celda (direccion/addons/montura/
+    // fase) compuesta en segundo plano, en vez de la rejilla completa por fase:
+    // en HD un outfit son 8 MB por fase, y la ventana de outfits pedia 130.
+    static void setModoVistaPrevia(bool activo);
+    static bool enModoVistaPrevia();
+    bool tieneCeldasPrevia() const { return m_celdasPrevia != nullptr; }
 
     // Diagnostico: veces que draw() no pinto un objeto por no tener textura lista
     // (ni la fase pedida ni la 0). Bajo tierra eso deja ver el fondo negro.
@@ -277,6 +292,34 @@ private:
     static Size getBestTextureDimension(int w, int h, int count);
 
     void loadTexture(int animationPhase);
+
+    // Celdas de vista previa (ver setModoVistaPrevia). Cada celda: las capas
+    // (base + 4 mascaras) de una combinacion direccion/addons/montura/fase,
+    // una al lado de otra en una textura pequena, con el mismo recorte de
+    // bordes transparentes que la rejilla grande.
+    struct CapaPrevia
+    {
+        Rect rect;      // en la textura de la celda, ya recortada
+        Rect origin;    // la celda entera
+        Point offset;   // rect.topLeft() - origin.topLeft()
+    };
+    struct CeldaPrevia
+    {
+        std::atomic_bool lista{ false };
+        std::atomic_bool componiendo{ false };
+        TexturePtr texture;
+        std::array<CapaPrevia, 5> capas{};
+    };
+    struct CeldasPrevia
+    {
+        std::mutex mutex;
+        std::unordered_map<uint32_t, std::shared_ptr<CeldaPrevia>> celdas;
+    };
+    std::unique_ptr<CeldasPrevia> m_celdasPrevia;
+
+    std::shared_ptr<CeldaPrevia> obtenerCeldaPrevia(int x, int y, int z, int fase);
+    void componerCeldaPrevia(const std::shared_ptr<CeldaPrevia>& celda, int x, int y, int z, int fase);
+    void drawCeldaPrevia(const Point& dest, int layer, int x, int y, int z, int fase, const Color& color);
 
     struct TextureData
     {

@@ -82,6 +82,7 @@ public:
     void pushTransformMatrix() const { getCurrentPool()->pushTransformMatrix(); }
     void popTransformMatrix() const { getCurrentPool()->popTransformMatrix(); }
     void scale(const float factor) const { getCurrentPool()->scale(factor); }
+    float getScale() const { return getCurrentPool()->getScale(); }
     void translate(const float x, const float y) const { getCurrentPool()->translate(x, y); }
     void translate(const Point& p) const { getCurrentPool()->translate(p); }
     void rotate(const float angle) const { getCurrentPool()->rotate(angle); }

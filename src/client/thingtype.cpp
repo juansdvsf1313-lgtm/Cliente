@@ -35,6 +35,10 @@
 #include "framework/core/clock.h"
 #include "framework/stdext/time.h"
 #include <framework/util/stats.h>
+
+// Modo vista previa por hilo (ver ThingType::setModoVistaPrevia). Declarado aqui
+// porque draw() y getExactSize() lo consultan y estan antes en el fichero.
+static thread_local bool t_modoVistaPrevia = false;
 #include "framework/core/filestream.h"
 #include "framework/graphics/drawpoolmanager.h"
 #include "framework/graphics/image.h"
@@ -791,6 +795,12 @@ void ThingType::draw(const Point& dest, const int layer, const int xPattern, con
     // this line fixes a bug that makes them disappear while moving
     int animationFrameId = animationPhase % m_animationPhases;
 
+    // Vista previa: celda pequena en vez de la rejilla completa (ver .h).
+    if (t_modoVistaPrevia && m_category == ThingCategoryCreature && drawThings && !lightView) {
+        drawCeldaPrevia(dest, layer, xPattern, yPattern, zPattern, animationFrameId, color);
+        return;
+    }
+
     // Con drawThings == false es la pasada de luz: solo consulta, no compone.
     s_soloLectura = !drawThings;
     auto texture = getTexture(animationFrameId);
@@ -948,10 +958,168 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
     return m_textureNull;
 }
 
+void ThingType::setModoVistaPrevia(const bool activo) { t_modoVistaPrevia = activo; }
+bool ThingType::enModoVistaPrevia() { return t_modoVistaPrevia; }
+
+std::shared_ptr<ThingType::CeldaPrevia> ThingType::obtenerCeldaPrevia(const int x, const int y, const int z, const int fase)
+{
+    if (!m_celdasPrevia)
+        m_celdasPrevia = std::make_unique<CeldasPrevia>();
+
+    const uint32_t clave = (static_cast<uint32_t>(fase & 0xFF)) | (static_cast<uint32_t>(z & 0xFF) << 8)
+        | (static_cast<uint32_t>(y & 0xFF) << 16) | (static_cast<uint32_t>(x & 0xFF) << 24);
+
+    std::shared_ptr<CeldaPrevia> celda;
+    {
+        std::lock_guard<std::mutex> lock(m_celdasPrevia->mutex);
+        auto& ref = m_celdasPrevia->celdas[clave];
+        if (!ref)
+            ref = std::make_shared<CeldaPrevia>();
+        celda = ref;
+    }
+
+    bool esperado = false;
+    if (!celda->lista.load(std::memory_order_acquire) && celda->componiendo.compare_exchange_strong(esperado, true, std::memory_order_acq_rel)) {
+        g_asyncDispatcher->detach_task([this, celda, x, y, z, fase] {
+            componerCeldaPrevia(celda, x, y, z, fase);
+            celda->componiendo.store(false, std::memory_order_release);
+        });
+    }
+    return celda;
+}
+
+// Compone una celda: misma logica que loadTexture() para una sola combinacion
+// de patrones, con las capas una al lado de otra. Corre en un hilo del pool;
+// si falta una hoja se espera a que llegue (aqui esperar no congela nada).
+void ThingType::componerCeldaPrevia(const std::shared_ptr<CeldaPrevia>& celda, const int x, const int y, const int z, const int fase)
+{
+    static const Color maskColors[] = { Color::red, Color::green, Color::blue, Color::yellow };
+
+    const int S = g_gameConfig.getSpriteSize();
+    const int capas = m_layers >= 2 ? 5 : 1;
+    const Size celdaPx = Size(m_size.width(), m_size.height()) * S;
+    const auto& imagen = std::make_shared<Image>(Size(celdaPx.width() * capas, celdaPx.height()));
+    const bool protobufSupported = m_fromAppearances || g_game.isUsingProtobuf();
+
+    const auto sprite = [&](const uint32_t spriteIndex, bool& falta) -> ImagePtr {
+        if (spriteIndex >= m_spritesIndex.size()) {
+            falta = true;
+            return nullptr;
+        }
+        const auto spriteId = m_spritesIndex[spriteIndex];
+        bool isLoading = false;
+        auto img = g_sprites.getSpriteImage(spriteId, isLoading);
+        for (int espera = 0; isLoading && espera < 500; ++espera) {
+            stdext::millisleep(2);
+            isLoading = false;
+            img = g_sprites.getSpriteImage(spriteId, isLoading);
+        }
+        if (isLoading)
+            falta = true;
+        return img;
+    };
+
+    for (int l = 0; l < capas; ++l) {
+        const bool spriteMask = l > 0;
+        const Point framePos(l * celdaPx.width(), 0);
+
+        if (protobufSupported) {
+            bool falta = false;
+            const auto& spriteImage = sprite(getSpriteIndex(-1, -1, spriteMask ? 1 : l, x, y, z, fase), falta);
+            if (falta)
+                return; // se reintentara en el siguiente draw()
+            if (spriteImage) {
+                if (spriteMask)
+                    spriteImage->overwriteMask(maskColors[l - 1]);
+                const auto spriteSize = spriteImage->getSize() / S;
+                const Point spritePos = Point(m_size.width() - spriteSize.width(), m_size.height() - spriteSize.height()) * S;
+                imagen->blit(framePos + spritePos, spriteImage);
+            }
+        } else {
+            for (int h = 0; h < m_size.height(); ++h) {
+                for (int w = 0; w < m_size.width(); ++w) {
+                    bool falta = false;
+                    const auto& spriteImage = sprite(getSpriteIndex(w, h, spriteMask ? 1 : l, x, y, z, fase), falta);
+                    if (falta)
+                        return;
+                    if (!spriteImage)
+                        continue;
+                    if (spriteMask)
+                        spriteImage->overwriteMask(maskColors[l - 1]);
+                    const Point spritePos = Point(m_size.width() - w - 1, m_size.height() - h - 1) * S;
+                    imagen->blit(framePos + spritePos, spriteImage);
+                }
+            }
+        }
+
+        // Recorte de bordes transparentes, igual que en loadTexture().
+        auto& capa = celda->capas[l];
+        capa.rect = Rect(framePos + Point(celdaPx.width(), celdaPx.height()) - Point(1), framePos);
+        for (int fx = framePos.x; fx < framePos.x + celdaPx.width(); ++fx) {
+            for (int fy = framePos.y; fy < framePos.y + celdaPx.height(); ++fy) {
+                const uint8_t* px = imagen->getPixel(fx, fy);
+                if (px[3] == 0x00)
+                    continue;
+                capa.rect.setTop(std::min<int>(fy, capa.rect.top()));
+                capa.rect.setLeft(std::min<int>(fx, capa.rect.left()));
+                capa.rect.setBottom(std::max<int>(fy, capa.rect.bottom()));
+                capa.rect.setRight(std::max<int>(fx, capa.rect.right()));
+            }
+        }
+        capa.origin = Rect(framePos, celdaPx);
+        capa.offset = capa.rect.topLeft() - framePos;
+    }
+
+    celda->texture = std::make_shared<Texture>(imagen, false, false);
+    // Suavizado: las vistas previas se reducen (128 -> 64 px en la lista) y sin
+    // filtro lineal se verian dentadas; el framebuffer de antes ya filtraba.
+    celda->texture->setSmooth(true);
+    celda->texture->allowAtlasCache();
+    celda->lista.store(true, std::memory_order_release);
+}
+
+void ThingType::drawCeldaPrevia(const Point& dest, const int layer, const int x, const int y, const int z, const int fase, const Color& color)
+{
+    if (layer > 0 && m_layers < 2) {
+        g_drawPool.resetOnlyOnceParameters();
+        return; // este outfit no tiene mascaras de color
+    }
+
+    auto celda = obtenerCeldaPrevia(x, y, z, fase);
+    if (!celda->lista.load(std::memory_order_acquire) && fase != 0) {
+        // como en draw(): mientras se construye la fase pedida, se ensena la 0
+        celda = obtenerCeldaPrevia(x, y, z, 0);
+    }
+    if (!celda->lista.load(std::memory_order_acquire)) {
+        g_drawPool.resetOnlyOnceParameters();
+        return;
+    }
+
+    m_lastTimeUsage.restart();
+
+    const auto& capa = celda->capas[std::clamp<int>(layer, 0, 4)];
+    const Rect screenRect(dest + (capa.offset - m_displacement - (m_size.toPoint() - Point(1)) * g_gameConfig.getSpriteSize()) * g_drawPool.getScaleFactor(),
+                          capa.rect.size() * g_drawPool.getScaleFactor());
+    const auto& newColor = m_opacity < 1.0f ? Color(color, m_opacity) : color;
+
+    if (g_drawPool.shaderNeedFramebuffer())
+        drawWithFrameBuffer(celda->texture, screenRect, capa.rect, newColor);
+    else
+        g_drawPool.addTexturedRect(screenRect, celda->texture, capa.rect, newColor);
+}
+
 void ThingType::preload()
 {
     if (m_null || m_animationPhases == 0)
         return;
+
+    // Criaturas: la ventana de outfits las pinta en modo vista previa, asi que lo
+    // que hay que adelantar es la celda que muestra la lista (mirando al sur, sin
+    // addons ni montura, fase 0), no la rejilla de 8 MB.
+    if (m_category == ThingCategoryCreature) {
+        obtenerCeldaPrevia(Otc::South, 0, 0, 0);
+        return;
+    }
 
     // Solo la fase 0: es la que muestra una vista previa quieta. Cargar las nueve
     // fases de cada outfit serian 72 MB por outfit en HD.
@@ -1366,6 +1534,17 @@ int ThingType::getExactSize(const int layer, const int xPattern, const int yPatt
 {
     if (m_null)
         return 0;
+
+    // En vista previa se calcula desde la celda: pedir la rejilla grande solo
+    // para medir volveria a componer los 8 MB que este modo evita.
+    if (t_modoVistaPrevia && m_category == ThingCategoryCreature && m_animationPhases > 0) {
+        const auto& celda = obtenerCeldaPrevia(xPattern, yPattern, zPattern, animationPhase % m_animationPhases);
+        if (!celda->lista.load(std::memory_order_acquire))
+            return 0;
+        const auto& capa = celda->capas[std::clamp<int>(layer, 0, 4)];
+        const auto& size = capa.origin.size() - capa.offset.toSize();
+        return std::max<int>(size.width(), size.height());
+    }
 
     if (!getTexture(animationPhase)) // we must calculate it anyway.
         return 0;

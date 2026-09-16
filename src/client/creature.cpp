@@ -145,6 +145,14 @@ void Creature::draw(const Rect& destRect, const uint8_t size, const bool center)
     if (!canDraw())
         return;
 
+    // Vista previa (UICreature): las criaturas se pintan desde celdas pequenas,
+    // no desde la rejilla de 8 MB por fase (ThingType::setModoVistaPrevia). El
+    // guardia lo apaga al salir aunque salte una excepcion.
+    struct ModoPrevia {
+        ModoPrevia() { ThingType::setModoVistaPrevia(true); }
+        ~ModoPrevia() { ThingType::setModoVistaPrevia(false); }
+    } modoPrevia;
+
     const int baseSprite = g_gameConfig.getSpriteSize();
     const int nativeSize = g_gameConfig.isUseCropSizeForUIDraw()
         ? getExactSize(0, 0, 0)
@@ -152,19 +160,41 @@ void Creature::draw(const Rect& destRect, const uint8_t size, const bool center)
     const int tileCount = 2;
     const int fbSize = tileCount * baseSprite;
 
-    g_drawPool.bindFrameBuffer(fbSize); {
-        Point p = center
-            ? Point((fbSize - nativeSize) / 2 + (nativeSize - baseSprite)) + getDisplacement()
-            : Point(fbSize - baseSprite) + getDisplacement();
-
-        internalDraw(p);
-        if (isMarked())           internalDraw(p, getMarkedColor());
-        else if (isHighlighted()) internalDraw(p, getHighlightColor());
-    }
-
     Rect out = destRect;
     if (size > 0) out = Rect(destRect.topLeft(), Size(size, size));
-    g_drawPool.releaseFrameBuffer(out);
+
+    // Antes se pintaba en un framebuffer temporal de 2x2 casillas que luego se
+    // volcaba escalado a `out`. Con ~100 vistas previas en la ventana de outfits
+    // eran 100 cambios de framebuffer por cada repintado del interfaz (medido:
+    // 200 fotogramas lentos en 10 s al elegir outfit). Ahora se pinta directo en
+    // `out` con el factor de escala del pool y recorte al rectangulo: todo el
+    // dibujado de la criatura ya multiplica sus desplazamientos por
+    // getScaleFactor(), asi que la geometria es la misma. El cuadro se centra en
+    // `out` (antes se estiraba si el rectangulo no era cuadrado).
+    const Point p = center
+        ? Point((fbSize - nativeSize) / 2 + (nativeSize - baseSprite)) + getDisplacement()
+        : Point(fbSize - baseSprite) + getDisplacement();
+
+    // g_drawPool.scale() aplica una matriz a TODO lo que se dibuje despues
+    // (posiciones y tamanos), asi que la posicion se da en el espacio ya
+    // escalado: origen/escala + p. El recorte (glScissor) va en pixeles de
+    // pantalla, sin escalar.
+    const float escala = std::min<int>(out.width(), out.height()) / static_cast<float>(fbSize);
+    const Point origen = out.topLeft() + Point(static_cast<int>((out.width() - fbSize * escala) / 2),
+                                               static_cast<int>((out.height() - fbSize * escala) / 2));
+    const Point dest = Point(static_cast<int>(std::lround(origen.x / escala)), static_cast<int>(std::lround(origen.y / escala))) + p;
+
+    const Rect clipAnterior = g_drawPool.getClipRect();
+    g_drawPool.setClipRect(clipAnterior.isValid() ? clipAnterior.intersection(out) : out);
+    const float escalaAnterior = g_drawPool.getScale();
+    g_drawPool.scale(escalaAnterior * escala); // relativa a la escala vigente (densidad de pantalla)
+
+    internalDraw(dest);
+    if (isMarked())           internalDraw(dest, getMarkedColor());
+    else if (isHighlighted()) internalDraw(dest, getHighlightColor());
+
+    g_drawPool.scale(escalaAnterior);
+    g_drawPool.setClipRect(clipAnterior);
 }
 
 void Creature::drawInformation(const MapPosInfo& mapRect, const Point& dest, const int drawFlags)
@@ -1039,6 +1069,15 @@ void Creature::setOutfit(const Outfit& outfit, bool fireEvent)
     }
 
     m_clientId = thingType->getId();
+
+    // Descomprimir ya en segundo plano las hojas del outfit (y de la montura): la
+    // criatura acaba de aparecer o de cambiar de aspecto y su atlas se va a
+    // componer enseguida; asi la composicion no espera al LZMA.
+    thingType->precalentarHojas();
+    if (m_outfit.hasMount()) {
+        if (const auto& montura = g_things.getThingType(m_outfit.getMount(), ThingCategoryCreature))
+            montura->precalentarHojas();
+    }
 
     if (m_outfit.hasMount()) {
         m_numPatternZ = std::min<int>(1, getNumPatternZ() - 1);
