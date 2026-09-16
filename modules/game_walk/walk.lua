@@ -236,8 +236,47 @@ local function onTeleport(player, newPos, oldPos)
     player:lockWalk(delay)
 end
 
+-- Sigue caminando mientras la tecla de direccion siga pulsada.
+--
+-- El panel del juego descarta las repeticiones de tecla durante sus primeros
+-- 200 ms (setAutoRepeatDelay(200), que es lo que distingue un toque de una
+-- pulsacion mantenida). Con un personaje rapido cada paso dura 100-150 ms: el
+-- primer paso terminaba ANTES de que llegara la primera repeticion y el
+-- personaje se paraba un instante antes de seguir. RL y RubinOT enlazan el
+-- siguiente paso en cuanto acaba el anterior; aqui igual. smartWalkDir lo
+-- mantienen las propias pulsaciones y sueltas de tecla, asi que un toque corto
+-- sigue dando un solo paso: al soltar se borra antes de que acabe el paso.
+local continuarEvent = nil
+local REINTENTOS_CONTINUAR = 20   -- x 5 ms: cubre una confirmacion del servidor lenta
+local function continuarCaminando(intentos)
+    continuarEvent = nil
+    local player = g_game.getLocalPlayer()
+    if not player or not smartWalkDir or player:isWalking() then
+        return
+    end
+    if g_keyboard.getModifiers() ~= KeyboardNoModifier then
+        return
+    end
+    if walk(smartWalkDir) then
+        return
+    end
+    -- Todavia no se podia (bloqueo tras cancelar, paso sin confirmar...):
+    -- se reintenta en breve en vez de quedarse parado hasta la repeticion.
+    if intentos > 0 then
+        continuarEvent = scheduleEvent(function() continuarCaminando(intentos - 1) end, 5)
+    end
+end
+
 --- Handles the end of a walking event.
 local function onWalkFinish(player)
+    if not nextWalkDir and smartWalkDir then
+        if continuarEvent then
+            removeEvent(continuarEvent)
+        end
+        continuarEvent = addEvent(function() continuarCaminando(REINTENTOS_CONTINUAR) end)
+        return
+    end
+
     if nextWalkDir then
         -- Antes, con pre-walk activado se esperaban 50 ms para cambiar de
         -- direccion, y sin pre-walk era inmediato: justo al reves de lo
