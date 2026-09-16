@@ -56,11 +56,10 @@ namespace
     constexpr std::string_view s_spdConsolePatternDebug = "[%Y-%m-%d %H:%M:%S.%e] [thread %t] [%^%l%$] %v";
     constexpr std::string_view s_spdFilePattern = "[%Y-%m-%d %H:%M:%S.%e] [%l] %v";
     constexpr std::string_view s_spdFilePatternDebug = "[%Y-%m-%d %H:%M:%S.%e] [thread %t] [%l] %v";
-#if ENABLE_ENCRYPTION == 1
-    bool s_ignoreLogs = true;
-#else
+    // TheOne: con el cifrado activo el original silenciaba los logs de nivel info.
+    // Se mantienen: otclient.log no lleva nada secreto y es lo que usamos para
+    // diagnosticar en los PCs de los jugadores.
     bool s_ignoreLogs = false;
-#endif
 
     std::string_view getConsolePattern()
     {

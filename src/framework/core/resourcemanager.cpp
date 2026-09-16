@@ -560,6 +560,14 @@ std::string ResourceManager::readFileContentsFromWorkDir(const std::string& file
 
     std::string buffer(std::istreambuf_iterator<char>(file), {});
     file.close();
+#if ENABLE_ENCRYPTION == 1
+    // Igual que readFileContents: la carpeta del cliente ES el work dir y sus
+    // ficheros van cifrados. Sin esto, client_assets leia el catalogo cifrado por
+    // aqui, no podia parsearlo y daba los assets por no instalados.
+    const std::string encHeader(ENCRYPTION_HEADER);
+    if (buffer.size() >= encHeader.size() && buffer.compare(0, encHeader.size(), encHeader) == 0)
+        buffer = decrypt(buffer.substr(encHeader.size()));
+#endif
     return buffer;
 }
 
