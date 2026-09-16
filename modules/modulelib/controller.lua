@@ -79,6 +79,11 @@ local function onGameStart(self)
     if self.__onGameStart ~= nil then
         self.currentTypeEvent = TypeEvent.GAME_INIT
         addEvent(function()
+            -- Medida del login (solo modo desarrollador): el trazador de fotogramas
+            -- ve todos los onGameStart de los controladores como "controller.lua",
+            -- sin saber de que modulo es cada uno.
+            local t0 = g_clock.realMillis()
+
             self:__onGameStart()
 
             local eventList = self.events[TypeEvent.GAME_INIT]
@@ -86,6 +91,11 @@ local function onGameStart(self)
                 for _, event in pairs(eventList) do
                     event:connect()
                 end
+            end
+
+            local ms = g_clock.realMillis() - t0
+            if ms >= 5 and g_app.isDevMode and g_app.isDevMode() then
+                g_logger.info(string.format('[login] %s: onGameStart %d ms', tostring(self.name), ms))
             end
         end)
     end

@@ -248,10 +248,48 @@ local function setupComboBox()
     panels.keybindsPanel.presets.list:setCurrentOption(Keybind.currentPreset)
 end
 
+-- Indice de widgets por id para la carga inicial de opciones. setOption busca el
+-- widget de cada opcion con recursiveGetChildById en TODOS los paneles, y con
+-- ~150 opciones y paneles de cientos de widgets (atajos de teclado) eran miles de
+-- recorridos del arbol completo al arrancar (medido: 119 ms). El indice recorre
+-- cada panel una sola vez. Solo vive mientras dura setup(): despues los widgets
+-- pueden cambiar y setOption vuelve a buscar como siempre.
+local indiceWidgets = nil
+
+local function indexarPanel(panel)
+    -- Mismo orden que UIWidget::recursiveGetChildById: primero los hijos
+    -- directos, luego en profundidad hijo a hijo. Se guarda el PRIMERO de cada id.
+    local indice = {}
+    local function visitar(widget)
+        local hijos = widget:getChildren()
+        for _, hijo in ipairs(hijos) do
+            local id = hijo:getId()
+            if id and id ~= '' and indice[id] == nil then
+                -- getChildById (el mapa del C++) decide cual gana si hay ids repetidos
+                indice[id] = widget:getChildById(id) or hijo
+            end
+        end
+        for _, hijo in ipairs(hijos) do
+            visitar(hijo)
+        end
+    end
+    visitar(panel)
+    return indice
+end
+
 local function setup()
     panels.gameMapPanel = modules.game_interface.getMapPanel()
 
+    local medir = g_app.isDevMode and g_app.isDevMode()
+    local t0 = g_clock.realMicros()
+
     setupComboBox()
+
+    indiceWidgets = {}
+    for nombre, panel in pairs(panels) do
+        indiceWidgets[nombre] = indexarPanel(panel)
+    end
+    local tIndice = g_clock.realMicros()
 
     -- load options
     for k, obj in pairs(options) do
@@ -285,6 +323,12 @@ local function setup()
         else
             setOption('mouseControlMode', 0, true)
         end
+    end
+
+    indiceWidgets = nil
+    if medir then
+        g_logger.info(string.format('[login] client_options.setup %d ms (indice de widgets %d ms)',
+            math.floor((g_clock.realMicros() - t0) / 1000), math.floor((tIndice - t0) / 1000)))
     end
     
     -- Schedule combobox updates to ensure they happen after UI setup is complete
@@ -507,8 +551,13 @@ function setOption(key, value, force)
 
 
     -- change value for keybind updates
-    for _, panel in pairs(panels) do
-        local widget = panel:recursiveGetChildById(key)
+    for nombre, panel in pairs(panels) do
+        local widget
+        if indiceWidgets and indiceWidgets[nombre] then
+            widget = indiceWidgets[nombre][key]
+        else
+            widget = panel:recursiveGetChildById(key)
+        end
         if widget then
             if widget:getStyle().__class == 'UICheckBox' then
                 widget:setChecked(value)

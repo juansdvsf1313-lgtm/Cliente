@@ -135,6 +135,16 @@ function setupActionBar(n)
     local locked = barState.isLocked and true or false
     actionbar.tabBar.onMouseWheel = nil
     actionbar.locked = locked
+
+    -- Las barras ocultas no montan sus ranuras: eran 9 barras x 50 widgets en
+    -- cada login (medido: 136 ms, el onGameStart mas caro del cliente) para
+    -- ensenar normalmente una o dos. Una barra se monta al hacerse visible
+    -- (Opciones llama a setupActionBar al activarla) y los atajos de teclado solo
+    -- buscan en las barras visibles, asi que no se pierde nada.
+    if not visible then
+        return
+    end
+
     local items = {}
     for i = 1, 50 do
         local layout = n < 4 and 'ActionButton' or 'SideActionButton'
@@ -379,11 +389,10 @@ end
 
 --- Handles game start event
 function ActionBarController:onGameStart()
-    onCreateActionBars()
-    
-    -- Ensure fresh cache
+    -- Estado de partida limpio ANTES de montar las barras. Antes se limpiaba
+    -- despues de onCreateActionBars, que en el primer login ya las montaba: se
+    -- borraba lo recien calculado y se volvian a montar todas.
     if clearHotkeyCache then clearHotkeyCache() end
-    updateActionBarEventSubscriptions()
     dragItem = nil
     dragButton = nil
     cachedItemWidget = {}
@@ -391,9 +400,18 @@ function ActionBarController:onGameStart()
     hotkeyItemList = {}
     spellGroupPressed = {}
     spellGroupCooldownCache = {}
-    for i = 1, #actionBars do
-        setupActionBar(i)
+
+    -- La primera vez onCreateActionBars crea las barras y monta cada una; en los
+    -- siguientes logins ya existen y hay que montarlas aqui.
+    local recienCreadas = #actionBars == 0
+    onCreateActionBars()
+    updateActionBarEventSubscriptions()
+    if not recienCreadas then
+        for i = 1, #actionBars do
+            setupActionBar(i)
+        end
     end
+
     ActionBarController:scheduleEvent(function()
         onMultiUseCooldown()
         onUpdateActionBarStatus()
