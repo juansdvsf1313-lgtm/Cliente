@@ -79,6 +79,7 @@ public:
     void resetDrawOrder() const { getCurrentPool()->resetDrawOrder(); }
     void resetOnlyOnceParameters() const { getCurrentPool()->resetOnlyOnceParameters(); }
 
+    void scaleBy(const float sx, const float sy) const { getCurrentPool()->scaleBy(sx, sy); }
     void pushTransformMatrix() const { getCurrentPool()->pushTransformMatrix(); }
     void popTransformMatrix() const { getCurrentPool()->popTransformMatrix(); }
     void scale(const float factor) const { getCurrentPool()->scale(factor); }

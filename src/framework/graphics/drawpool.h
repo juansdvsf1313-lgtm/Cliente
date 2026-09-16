@@ -262,6 +262,9 @@ private:
     void resetTransformMatrix() { getCurrentState().transformMatrix = DEFAULT_MATRIX3; }
     void resetDrawOrder() { m_currentDrawOrder = DrawOrder::FIRST; }
 
+    // Escala independiente en X e Y compuesta con la transformacion actual (como
+    // translate/rotate). scale() en cambio SUSTITUYE la matriz entera.
+    void scaleBy(float sx, float sy);
     void pushTransformMatrix();
     void popTransformMatrix();
     void translate(float x, float y);

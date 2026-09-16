@@ -164,36 +164,45 @@ void Creature::draw(const Rect& destRect, const uint8_t size, const bool center)
     if (size > 0) out = Rect(destRect.topLeft(), Size(size, size));
 
     // Antes se pintaba en un framebuffer temporal de 2x2 casillas que luego se
-    // volcaba escalado a `out`. Con ~100 vistas previas en la ventana de outfits
-    // eran 100 cambios de framebuffer por cada repintado del interfaz (medido:
-    // 200 fotogramas lentos en 10 s al elegir outfit). Ahora se pinta directo en
-    // `out` con el factor de escala del pool y recorte al rectangulo: todo el
-    // dibujado de la criatura ya multiplica sus desplazamientos por
-    // getScaleFactor(), asi que la geometria es la misma. El cuadro se centra en
-    // `out` (antes se estiraba si el rectangulo no era cuadrado).
+    // volcaba estirado sobre `out`. Con ~100 vistas previas en la ventana de
+    // outfits eran 100 cambios de framebuffer por cada repintado del interfaz
+    // (medido: 200 fotogramas lentos en 10 s al elegir outfit). Ahora se pinta
+    // directo, con una transformacion que lleva cada pixel del framebuffer de
+    // antes a su sitio en `out`: la geometria es la misma que antes, incluido el
+    // estirado distinto en X e Y cuando el hueco no es cuadrado (la lista de
+    // personajes usa 54x59 px).
+    if (!out.isValid() || fbSize <= 0)
+        return;
+
+    // Recorte: el rectangulo de la vista previa dentro del recorte que traiga el
+    // widget padre. Si no se solapan no se pinta nada. Ojo: un rectangulo vacio
+    // en setClipRect significa SIN recorte; sin esta comprobacion la fila de la
+    // lista de personajes que queda fuera del scroll se pintaba encima de lo que
+    // hubiera debajo.
+    const Rect clipAnterior = g_drawPool.getClipRect();
+    Rect recorte = out;
+    if (clipAnterior.isValid()) {
+        recorte = clipAnterior.intersection(out);
+        if (!recorte.isValid())
+            return;
+    }
+
     const Point p = center
         ? Point((fbSize - nativeSize) / 2 + (nativeSize - baseSprite)) + getDisplacement()
         : Point(fbSize - baseSprite) + getDisplacement();
 
-    // g_drawPool.scale() aplica una matriz a TODO lo que se dibuje despues
-    // (posiciones y tamanos), asi que la posicion se da en el espacio ya
-    // escalado: origen/escala + p. El recorte (glScissor) va en pixeles de
-    // pantalla, sin escalar.
-    const float escala = std::min<int>(out.width(), out.height()) / static_cast<float>(fbSize);
-    const Point origen = out.topLeft() + Point(static_cast<int>((out.width() - fbSize * escala) / 2),
-                                               static_cast<int>((out.height() - fbSize * escala) / 2));
-    const Point dest = Point(static_cast<int>(std::lround(origen.x / escala)), static_cast<int>(std::lround(origen.y / escala))) + p;
+    g_drawPool.setClipRect(recorte);
+    g_drawPool.pushTransformMatrix();
+    // La primera transformacion que se compone es la primera que se aplica al
+    // punto (igual que en DrawPool::rotate(x, y, angle)): escalar y luego mover.
+    g_drawPool.scaleBy(out.width() / static_cast<float>(fbSize), out.height() / static_cast<float>(fbSize));
+    g_drawPool.translate(static_cast<float>(out.x()), static_cast<float>(out.y()));
 
-    const Rect clipAnterior = g_drawPool.getClipRect();
-    g_drawPool.setClipRect(clipAnterior.isValid() ? clipAnterior.intersection(out) : out);
-    const float escalaAnterior = g_drawPool.getScale();
-    g_drawPool.scale(escalaAnterior * escala); // relativa a la escala vigente (densidad de pantalla)
+    internalDraw(p);
+    if (isMarked())           internalDraw(p, getMarkedColor());
+    else if (isHighlighted()) internalDraw(p, getHighlightColor());
 
-    internalDraw(dest);
-    if (isMarked())           internalDraw(dest, getMarkedColor());
-    else if (isHighlighted()) internalDraw(dest, getHighlightColor());
-
-    g_drawPool.scale(escalaAnterior);
+    g_drawPool.popTransformMatrix();
     g_drawPool.setClipRect(clipAnterior);
 }
 

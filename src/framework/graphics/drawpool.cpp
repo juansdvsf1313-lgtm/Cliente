@@ -402,6 +402,17 @@ void DrawPool::rotate(const float x, const float y, const float angle)
     translate(x, y);
 }
 
+void DrawPool::scaleBy(const float sx, const float sy)
+{
+    const Matrix3 scaleMatrix = {
+              sx,  0.0f,  0.0f,
+            0.0f,    sy,  0.0f,
+            0.0f,  0.0f,  1.0f
+    };
+
+    getCurrentState().transformMatrix = getCurrentState().transformMatrix * scaleMatrix.transposed();
+}
+
 void DrawPool::pushTransformMatrix()
 {
     m_transformMatrixStack.emplace_back(getCurrentState().transformMatrix);
