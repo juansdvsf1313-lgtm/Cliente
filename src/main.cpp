@@ -37,6 +37,8 @@
 #endif
 #include <iostream>
 #include <ctime>
+#include <filesystem>
+#include <string_view>
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -65,6 +67,10 @@ extern "C" {
 #endif
 
 namespace {
+
+// Fichero que enciende el modo desarrollador (ver main). Solo esta en el arbol
+// de desarrollo: esta en .gitignore y no se sube al VPS.
+constexpr std::string_view MARCA_MODO_DESARROLLO = "modo-desarrollo.txt";
 
 bool shouldShowHelp(const std::vector<std::string>& args)
 {
@@ -122,11 +128,21 @@ int main(const int argc, const char* argv[])
 {
     std::vector<std::string> args(argv, argv + argc);
 
+    // Modo desarrollador: consola de Windows y terminal Lua del juego (Ctrl+T).
+    // Lo decide un fichero junto al exe, NO un parametro: con --console a secas
+    // cualquier jugador se abria la consola del cliente. El fichero no viaja en
+    // el paquete ni lo sirve el updater, asi que el cliente de los jugadores no
+    // tiene forma de encenderlo.
+    bool modoDesarrollo = false;
+    try {
+        const auto dirExe = std::filesystem::absolute(args[0]).parent_path();
+        modoDesarrollo = std::filesystem::exists(dirExe / MARCA_MODO_DESARROLLO);
+    } catch (const std::exception&) {
+        modoDesarrollo = false;
+    }
+
 #ifdef _WIN32
-    // Los jugadores reciben el exe sin consola (/SUBSYSTEM:WINDOWS). Con --console
-    // se abre una y se le redirige la salida estandar: es el modo desarrollador,
-    // que ademas activa el terminal Lua del juego (Application::isDevMode).
-    if (std::find(args.begin(), args.end(), "--console") != args.end() && AllocConsole()) {
+    if (modoDesarrollo && AllocConsole()) {
         FILE* f = nullptr;
         freopen_s(&f, "CONOUT$", "w", stdout);
         freopen_s(&f, "CONOUT$", "w", stderr);
@@ -197,6 +213,7 @@ int main(const int argc, const char* argv[])
     ALOGD("main: initializing app framework...");
     const auto drawEvents = ApplicationDrawEventsPtr(&g_client, [](ApplicationDrawEvents*) {});
     g_app.init(args, new GraphicalApplicationContext(g_gameConfig.getSpriteSize(), drawEvents));
+    g_app.setDevMode(modoDesarrollo);
     ALOGD("main: app framework initialized");
 
 #ifndef ANDROID

@@ -73,12 +73,11 @@ public:
     std::string getOs();
     std::string getStartupOptions() { return m_startupOptions; }
 
-    // Modo desarrollador: arrancado con --console (o --dev). Los jugadores no lo
-    // tienen; Lua lo consulta para no ofrecer el terminal ni otras herramientas.
-    bool isDevMode() const {
-        return m_startupOptions.find("--console") != std::string::npos
-            || m_startupOptions.find("--dev") != std::string::npos;
-    }
+    // Modo desarrollador: lo enciende el fichero modo-desarrollo.txt que hay
+    // junto al exe (ver main.cpp), nunca un parametro de linea de comandos. Lua
+    // lo consulta para no ofrecer el terminal ni otras herramientas al jugador.
+    bool isDevMode() const { return m_devMode; }
+    void setDevMode(const bool v) { m_devMode = v; }
 
 protected:
     void registerLuaFunctions();
@@ -94,6 +93,7 @@ protected:
     bool m_running{ false };
     bool m_terminated{ false };
     bool m_stopping{ false };
+    bool m_devMode{ false };
 
     std::unique_ptr<ApplicationContext> m_context;
 };

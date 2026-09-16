@@ -353,3 +353,7 @@ __pycache__/
 _backup_sonidos/
 medicion_caminado.txt
 geom_*.txt
+
+# Enciende la consola y el terminal Ctrl+T (ver src/main.cpp). Solo local:
+# si llegara al paquete o al VPS, los jugadores tendrian consola.
+modo-desarrollo.txt
